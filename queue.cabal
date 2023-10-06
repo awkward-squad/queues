@@ -29,6 +29,8 @@ library
   build-depends:
     base ^>= 4.14 || ^>= 4.15 || ^>= 4.16 || ^>= 4.17 || ^>= 4.18,
   default-extensions:
+    DeriveFunctor
+    DerivingStrategies
     LambdaCase
     PatternSynonyms
   default-language: Haskell2010

@@ -8,6 +8,7 @@ where
 
 data Queue a
   = Queue [a] [a] [a]
+  deriving stock (Functor)
 
 queue :: [a] -> [a] -> [a] -> Queue a
 queue xs ys = \case
