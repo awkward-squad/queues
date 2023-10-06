@@ -55,12 +55,12 @@ pop = \case
   Queue [] _ _ -> Nothing
   Queue (x : xs) ys zs -> Just (x, queue xs ys zs)
 
--- | Construct a queue from a finite list.
+-- | \(\mathcal{O}(1)\). Construct a queue from a finite list.
 fromList :: [a] -> Queue a
-fromList =
-  List.foldl' (flip push) empty
+fromList xs =
+  Queue xs [] xs
 
--- | Construct a list from a queue.
+-- | \(\mathcal{O}(n)\). Construct a list from a queue.
 toList :: Queue a -> [a]
 toList =
   List.unfoldr pop
