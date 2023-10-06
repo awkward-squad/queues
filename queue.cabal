@@ -15,7 +15,11 @@ tested-with: GHC == 9.2.8, GHC == 9.4.7, GHC == 9.6.3
 version: 0.1.0
 
 description:
-  A queue.
+  A queue data structure, as described in
+  .
+    * Chris Okasaki, /"Simple and efficient purely functional queues and deques"/, Journal of Functional Programming, 5(4):583–592, October 1995.
+  .
+  This queue supports \(\mathcal{O}(1)\) worst-case push and pop.
 
 extra-source-files:
   CHANGELOG.md
