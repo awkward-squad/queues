@@ -55,7 +55,7 @@ pop = \case
   Queue [] _ _ -> Nothing
   Queue (x : xs) ys zs -> Just (x, queue xs ys zs)
 
--- | \(\mathcal{O}(1)\). Construct a queue from a finite list.
+-- | \(\mathcal{O}(1)\). Construct a queue from a list.
 fromList :: [a] -> Queue a
 fromList xs =
   Queue xs [] xs
