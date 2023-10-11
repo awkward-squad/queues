@@ -37,6 +37,7 @@ library
     DerivingStrategies
     LambdaCase
     PatternSynonyms
+    ViewPatterns
   default-language: Haskell2010
   exposed-modules:
     Data.Queue

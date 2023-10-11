@@ -9,8 +9,9 @@
 -- trivial to implement.
 module Data.Queue
   ( -- * Queue
-    Queue,
+    Queue (Empty, Full),
     empty,
+    singleton,
 
     -- * Basic interface
     push,
@@ -43,6 +44,12 @@ instance Semigroup (Queue a) where
 instance (Show a) => Show (Queue a) where
   show = show . toList
 
+pattern Empty :: Queue a
+pattern Empty <- Queue [] [] _
+
+pattern Full :: a -> Queue a -> Queue a
+pattern Full x xs <- (pop -> Just (x, xs))
+
 queue :: [a] -> [a] -> [a] -> Queue a
 queue xs ys = \case
   [] -> let xs1 = rotate ys [] xs in Queue xs1 [] xs1
@@ -59,12 +66,17 @@ empty :: Queue a
 empty =
   Queue [] [] []
 
--- | \(\mathcal{O}(1)\). Push an element onto the back of a queue.
+-- | A singleton queue.
+singleton :: a -> Queue a
+singleton x =
+  Queue [x] [] [x]
+
+-- | \(\mathcal{O}(1)\). Push an element onto the back of a queue, to be popped after the other elements.
 push :: a -> Queue a -> Queue a
 push y (Queue xs ys zs) =
   queue xs (y : ys) zs
 
--- | \(\mathcal{O}(1)\). Push an element onto the front of a queue.
+-- | \(\mathcal{O}(1)\). Push an element onto the front of a queue, to be popped next.
 pushFront :: a -> Queue a -> Queue a
 pushFront x (Queue xs ys zs) =
   Queue (x : xs) ys (x : zs) -- n.b. smart constructor not needed here
