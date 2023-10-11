@@ -17,8 +17,11 @@ module Data.Queue
 
     -- * Basic interface
     push,
-    pushFront,
     pop,
+
+    -- * Extended interface
+    pushFront,
+    popWhile,
 
     -- * Queries
     isEmpty,
@@ -94,16 +97,27 @@ push :: a -> Queue a -> Queue a
 push y (Queue xs ys zs) =
   queue xs (y : ys) zs
 
--- | \(\mathcal{O}(1)\). Push an element onto the front of a queue, to be popped next.
-pushFront :: a -> Queue a -> Queue a
-pushFront x (Queue xs ys zs) =
-  Queue (x : xs) ys (undefined : zs) -- n.b. smart constructor not needed here
-
 -- | \(\mathcal{O}(1)\). Pop an element off of the front of a queue.
 pop :: Queue a -> Maybe (a, Queue a)
 pop = \case
   Queue [] _ _ -> Nothing
   Queue (x : xs) ys zs -> Just (x, queue xs ys zs)
+
+-- | \(\mathcal{O}(1)\). Push an element onto the front of a queue, to be popped next.
+pushFront :: a -> Queue a -> Queue a
+pushFront x (Queue xs ys zs) =
+  Queue (x : xs) ys (undefined : zs) -- n.b. smart constructor not needed here
+
+-- | Pop elements off of the front of a queue while a predicate is satisfied.
+popWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
+popWhile p =
+  go empty
+  where
+    go acc = \case
+      Empty -> (toList acc, empty)
+      Full x xs
+        | p x -> go (push x acc) xs
+        | otherwise -> (toList acc, pushFront x xs)
 
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: Queue a -> Bool
