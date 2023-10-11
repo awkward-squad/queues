@@ -1,8 +1,12 @@
--- | A queue data structure, as described in
+-- | A queue data structure with \(\mathcal{O}(1)\) worst-case push and pop, as described in
 --
 --   * Chris Okasaki, /"Simple and efficient purely functional queues and deques"/, Journal of Functional Programming, 5(4):583–592, October 1995.
 --
--- This queue supports \(\mathcal{O}(1)\) worst-case push and pop.
+-- A queue can be thought to have a "back", like the back of a line (or queue), where new elements are pushed, and a
+-- "front", like the front of a line (or queue) where elements are popped in the order that they were pushed.
+--
+-- This queue also supports a "push to front" operation, which is like cutting the line (or queue), because it is
+-- trivial to implement.
 module Data.Queue
   ( -- * Queue
     Queue,
@@ -10,6 +14,7 @@ module Data.Queue
 
     -- * Basic interface
     push,
+    pushFront,
     pop,
 
     -- * List conversions
@@ -44,23 +49,30 @@ empty :: Queue a
 empty =
   Queue [] [] []
 
--- | \(\mathcal{O}(1)\). Push an element onto a queue.
+-- | \(\mathcal{O}(1)\). Push an element onto the back of a queue.
 push :: a -> Queue a -> Queue a
-push x (Queue xs ys zs) =
-  queue xs (x : ys) zs
+push y (Queue xs ys zs) =
+  queue xs (y : ys) zs
 
--- | \(\mathcal{O}(1)\). Pop an element off of a queue.
+-- | \(\mathcal{O}(1)\). Push an element onto the front of a queue.
+pushFront :: a -> Queue a -> Queue a
+pushFront x (Queue xs ys zs) =
+  Queue (x : xs) ys (x : zs) -- n.b. smart constructor not needed here
+
+-- | \(\mathcal{O}(1)\). Pop an element off of the front of a queue.
 pop :: Queue a -> Maybe (a, Queue a)
 pop = \case
   Queue [] _ _ -> Nothing
   Queue (x : xs) ys zs -> Just (x, queue xs ys zs)
 
--- | \(\mathcal{O}(1)\). Construct a queue from a list.
+-- | \(\mathcal{O}(1)\). Construct a queue from a list, where the head of the list corresponds to the front of the
+-- queue.
 fromList :: [a] -> Queue a
 fromList xs =
   Queue xs [] xs
 
--- | \(\mathcal{O}(n)\). Construct a list from a queue.
+-- | \(\mathcal{O}(n)\). Construct a list from a queue, where the head of the list corresponds to the front of the
+-- queue.
 toList :: Queue a -> [a]
 toList =
   List.unfoldr pop
