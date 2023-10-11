@@ -5,8 +5,14 @@
 -- A queue can be thought to have a "back", like the back of a line (or queue), where new elements are pushed, and a
 -- "front", like the front of a line (or queue), where elements are popped in the order that they were pushed.
 --
--- This queue also supports a "push to front" operation, which is like cutting the line (or queue), because it is
--- trivial to implement.
+-- This queue also supports a "push to front" operation, which is like cutting the line (or queue), because the
+-- underlying representation happens to trivially support it.
+--
+-- In this implementation, it is more helpful to think of the "front" being on the /left/, because (though the decision
+-- is arbitrary) we are consistent throughout, where it matters:
+--
+--   * List conversion functions associate the head of a list with the front of a queue.
+--   * The append operator @xs <> ys@ creates a queue with @xs@ in front of @ys@.
 module Data.Queue
   ( -- * Queue
     Queue (Empty, Full),
@@ -92,7 +98,7 @@ singleton :: a -> Queue a
 singleton x =
   Queue [x] [] [undefined]
 
--- | \(\mathcal{O}(1)\). Push an element onto the back of a queue, to be popped after the other elements.
+-- | \(\mathcal{O}(1)\). Push an element onto the back of a queue, to be popped last.
 push :: a -> Queue a -> Queue a
 push y (Queue xs ys zs) =
   queue xs (y : ys) zs
