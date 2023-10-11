@@ -3,7 +3,7 @@
 --   * Chris Okasaki, /"Simple and efficient purely functional queues and deques"/, Journal of Functional Programming, 5(4):583–592, October 1995.
 --
 -- A queue can be thought to have a "back", like the back of a line (or queue), where new elements are pushed, and a
--- "front", like the front of a line (or queue) where elements are popped in the order that they were pushed.
+-- "front", like the front of a line (or queue), where elements are popped in the order that they were pushed.
 --
 -- This queue also supports a "push to front" operation, which is like cutting the line (or queue), because it is
 -- trivial to implement.
@@ -29,6 +29,16 @@ import qualified Data.List as List
 data Queue a
   = Queue [a] [a] [a]
   deriving stock (Functor)
+
+instance Monoid (Queue a) where
+  mempty = empty
+  mappend = (<>)
+
+instance Semigroup (Queue a) where
+  xs <> ys =
+    case pop ys of
+      Nothing -> xs
+      Just (y, ys1) -> push y xs <> ys1
 
 instance (Show a) => Show (Queue a) where
   show = show . toList
