@@ -15,11 +15,12 @@ tested-with: GHC == 9.2.8, GHC == 9.4.7, GHC == 9.6.3
 version: 0.1.0
 
 description:
-  A queue data structure, as described in
+  A queue and deque data structure, as described in
   .
-    * Chris Okasaki, /"Simple and efficient purely functional queues and deques"/, Journal of Functional Programming, 5(4):583–592, October 1995.
+    * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
+    * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
   .
-  This queue supports \(\mathcal{O}(1)\) worst-case push and pop.
+  These data structures support \(\mathcal{O}(1)\) worst-case push and pop.
 
 extra-source-files:
   CHANGELOG.md
@@ -40,6 +41,7 @@ library
     ViewPatterns
   default-language: Haskell2010
   exposed-modules:
+    Data.Deque
     Data.Queue
   ghc-options:
     -Weverything

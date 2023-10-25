@@ -1,12 +1,13 @@
 -- | A queue data structure with \(\mathcal{O}(1)\) worst-case push and pop, as described in
 --
---   * Chris Okasaki, /"Simple and efficient purely functional queues and deques"/, Journal of Functional Programming, 5(4):583–592, October 1995.
+--   * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
+--   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
 --
--- A queue can be thought to have a "back", like the back of a line (or queue), where new elements are pushed, and a
--- "front", like the front of a line (or queue), where elements are popped in the order that they were pushed.
+-- A queue can be thought to have a "back" where new elements are pushed, and a "front" where elements are popped in the
+-- order that they were pushed.
 --
--- This queue also supports a "push to front" operation, which is like cutting the line (or queue), because the
--- underlying representation happens to trivially support it.
+-- This queue also supports a "push to front" operation, because the underlying representation happens to trivially
+-- support it. For a variant that also supports a "pop from back" operation, see "Data.Deque".
 --
 -- In this implementation, it is more helpful to think of the "front" being on the /left/, because (though the decision
 -- is arbitrary) we are consistent throughout, where it matters:
@@ -15,7 +16,7 @@
 --   * The append operator @xs <> ys@ creates a queue with @xs@ in front of @ys@.
 module Data.Queue
   ( -- * Queue
-    Queue (Empty, Full),
+    Queue (Empty, Pop),
 
     -- ** Initialization
     empty,
@@ -46,14 +47,19 @@ import qualified Data.List as List
 import qualified Data.Traversable as Traversable
 import GHC.Exts (Any)
 import Unsafe.Coerce (unsafeCoerce)
-import Prelude hiding (map, traverse)
+import Prelude hiding (map, span, traverse)
 
 -- | A queue.
 data Queue a
   = Queue
-      [a] -- xs = front of queue
-      [a] -- ys = back of queue, in reverse order
-      [Any] -- zs = some suffix of front of queue, |zs| = |xs| - |ys|. it's Any to show we don't care about the values
+      -- The front of the queue.
+      -- Invariant: length >= length of back
+      [a]
+      -- The back of the queue, in reverse order.
+      [a]
+      -- Some tail of the front of the queue. `Any` to show we don't care about the values, just the spine.
+      -- Invariant: length = length of front - length of back
+      [Any]
   deriving stock (Functor)
 
 instance Monoid (Queue a) where
@@ -72,15 +78,22 @@ instance (Show a) => Show (Queue a) where
 pattern Empty :: Queue a
 pattern Empty <- Queue [] _ _
 
-pattern Full :: a -> Queue a -> Queue a
-pattern Full x xs <- (pop -> Just (x, xs))
+pattern Pop :: a -> Queue a -> Queue a
+pattern Pop x xs <- (pop -> Just (x, xs))
 
-{-# COMPLETE Empty, Full #-}
+{-# COMPLETE Empty, Pop #-}
 
+-- Queue smart constructor.
+--
+-- `queue xs ys zs` is always called when |zs| = |xs| - |ys| + 1 (i.e. just after a push or pop)
 queue :: [a] -> [a] -> [Any] -> Queue a
 queue xs ys = \case
-  [] -> let xs1 = rotate ys [] xs in Queue xs1 [] (unsafeCoerce xs1)
+  [] -> let xs1 = rotate ys [] xs in Queue xs1 [] (schedule xs1)
   _ : zs -> Queue xs ys zs
+
+schedule :: [a] -> [Any]
+schedule =
+  unsafeCoerce
 
 -- rotate ys zs xs = xs ++ reverse ys ++ zs
 rotate :: [a] -> NonEmptyList a -> [a] -> [a]
@@ -116,20 +129,25 @@ pushFront x (Queue xs ys zs) =
 
 -- | Pop elements off of the front of a queue while a predicate is satisfied.
 popWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
-popWhile p =
+popWhile p queue0 =
+  case span p queue0 of
+    (queue1, queue2) -> (toList queue1, queue2)
+
+span :: (a -> Bool) -> Queue a -> (Queue a, Queue a)
+span p =
   go empty
   where
     go acc = \case
-      Empty -> (toList acc, empty)
-      Full x xs
+      Empty -> (acc, empty)
+      Pop x xs
         | p x -> go (push x acc) xs
-        | otherwise -> (toList acc, pushFront x xs)
+        | otherwise -> (acc, pushFront x xs)
 
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: Queue a -> Bool
 isEmpty = \case
   Empty -> True
-  Full _ _ -> False
+  Pop _ _ -> False
 
 -- | \(\mathcal{O}(n)\). Apply a function to each element in a queue.
 map :: (a -> b) -> Queue a -> Queue b
@@ -153,7 +171,7 @@ traverseBackwards f = \case
 -- queue.
 fromList :: [a] -> Queue a
 fromList xs =
-  Queue xs [] (unsafeCoerce xs)
+  Queue xs [] (schedule xs)
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue, where the head of the list corresponds to the front of the
 -- queue.
