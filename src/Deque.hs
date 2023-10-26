@@ -37,9 +37,9 @@ import Data.Bits (unsafeShiftR)
 import Data.List qualified as List
 import GHC.Exts (Any)
 import Unsafe.Coerce (unsafeCoerce)
-import Prelude hiding (length, map, reverse, traverse)
+import Prelude hiding (length, reverse)
 
--- | A deque.
+-- | A double-ended queue data structure with \(\mathcal{O}(1)\) worst-case push and pop.
 data Deque a
   = Deque
       [a]

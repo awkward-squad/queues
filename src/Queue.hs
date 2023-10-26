@@ -47,9 +47,9 @@ where
 import Data.List qualified as List
 import GHC.Exts (Any)
 import Unsafe.Coerce (unsafeCoerce)
-import Prelude hiding (map, span, traverse)
+import Prelude hiding (span)
 
--- | A queue.
+-- | A queue data structure with \(\mathcal{O}(1)\) worst-case push and pop.
 data Queue a
   = Queue
       -- The front of the queue.
@@ -92,7 +92,8 @@ queue xs ys = \case
   DidWork zs -> Queue xs ys zs
 
 -- rotate ys zs xs = xs ++ reverse ys ++ zs
-rotate :: [a] -> NonEmptyList a -> [a] -> [a]
+-- Precondition: |ys| = |xs| + 1
+rotate :: NonEmptyList a -> [a] -> [a] -> [a]
 rotate (NonEmptyList y ys) zs = \case
   [] -> y : zs
   x : xs -> x : rotate ys (y : zs) xs
