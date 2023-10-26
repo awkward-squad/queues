@@ -1,16 +1,16 @@
 cabal-version: 2.2
 
 author: Mitchell Rosen, Travis Staton
-bug-reports: https://github.com/awkward-squad/queue/issues
+bug-reports: https://github.com/awkward-squad/queues/issues
 category: Data
 copyright: Copyright (C) 2023 Mitchell Rosen, Travis Staton
-homepage: https://github.com/awkward-squad/queue
+homepage: https://github.com/awkward-squad/queues
 license: BSD-3-Clause
 license-file: LICENSE
 maintainer: Mitchell Rosen <mitchellwrosen@gmail.com>, Travis Staton <hello@travisstaton.com>
-name: queue
+name: queues
 stability: experimental
-synopsis: A queue
+synopsis: Queue and deque data structures.
 tested-with: GHC == 9.2.8, GHC == 9.4.7, GHC == 9.6.3
 version: 0.1.0
 
@@ -26,7 +26,7 @@ extra-doc-files:
 
 source-repository head
   type: git
-  location: https://github.com/awkward-squad/queue.git
+  location: https://github.com/awkward-squad/queues.git
 
 common component
   default-extensions:
