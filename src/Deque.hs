@@ -2,7 +2,12 @@
 --
 --   * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
-module Data.Deque
+--
+-- This module is intended to be imported qualified:
+--
+-- > import Deque (Deque)
+-- > import Deque qualified
+module Deque
   ( -- * Deque
     Deque (Empty, Front, Back),
 

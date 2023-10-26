@@ -2,16 +2,16 @@ module Main (main) where
 
 import Control.Applicative ((<|>))
 import Data.Coerce (coerce)
-import Data.Deque (Deque)
-import Data.Deque qualified as Deque
 import Data.List qualified as List
-import Data.Queue (Queue)
-import Data.Queue qualified as Queue
 import Data.Word
+import Deque (Deque)
+import Deque qualified
 import Hedgehog
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Main
 import Hedgehog.Range qualified as Range
+import Queue (Queue)
+import Queue qualified
 
 main :: IO ()
 main = do

@@ -14,7 +14,12 @@
 --
 --   * List conversion functions associate the head of a list with the front of a queue.
 --   * The append operator @xs <> ys@ creates a queue with @xs@ in front of @ys@.
-module Data.Queue
+--
+-- This module is intended to be imported qualified:
+--
+-- > import Queue (Queue)
+-- > import Queue qualified
+module Queue
   ( -- * Queue
     Queue (Empty, Front),
 
