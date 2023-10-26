@@ -72,7 +72,7 @@ newtype QueueWithEq a = QueueWithEq (Queue a)
 
 instance (Eq a) => Eq (QueueWithEq a) where
   QueueWithEq Queue.Empty == QueueWithEq Queue.Empty = True
-  QueueWithEq (Queue.Pop x xs) == QueueWithEq (Queue.Pop y ys) | x == y = QueueWithEq xs == QueueWithEq ys
+  QueueWithEq (Queue.Front x xs) == QueueWithEq (Queue.Front y ys) | x == y = QueueWithEq xs == QueueWithEq ys
   _ == _ = False
 
 -- O(n). Get the last element of a queue.
@@ -83,14 +83,14 @@ queueLast =
     go :: Maybe a -> Queue a -> Maybe a
     go acc = \case
       Queue.Empty -> acc
-      Queue.Pop x xs -> go (Just x <|> acc) xs
+      Queue.Front x xs -> go (Just x <|> acc) xs
 
 newtype DequeWithEq a = DequeWithEq (Deque a)
   deriving newtype (Show)
 
 instance (Eq a) => Eq (DequeWithEq a) where
   DequeWithEq Deque.Empty == DequeWithEq Deque.Empty = True
-  DequeWithEq (Deque.Pop x xs) == DequeWithEq (Deque.Pop y ys) | x == y = DequeWithEq xs == DequeWithEq ys
+  DequeWithEq (Deque.Front x xs) == DequeWithEq (Deque.Front y ys) | x == y = DequeWithEq xs == DequeWithEq ys
   _ == _ = False
 
 -- O(n). Get the first element of a deque by popping from the back.
@@ -101,7 +101,7 @@ dequeSlowHead =
     go :: Maybe a -> Deque a -> Maybe a
     go acc = \case
       Deque.Empty -> acc
-      Deque.PopBack xs x -> go (Just x <|> acc) xs
+      Deque.Back xs x -> go (Just x <|> acc) xs
 
 -- O(n). Get the last element of a deque by popping from the front.
 dequeSlowLast :: Deque a -> Maybe a
@@ -111,7 +111,7 @@ dequeSlowLast =
     go :: Maybe a -> Deque a -> Maybe a
     go acc = \case
       Deque.Empty -> acc
-      Deque.Pop x xs -> go (Just x <|> acc) xs
+      Deque.Front x xs -> go (Just x <|> acc) xs
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Generators

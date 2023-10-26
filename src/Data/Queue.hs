@@ -16,7 +16,7 @@
 --   * The append operator @xs <> ys@ creates a queue with @xs@ in front of @ys@.
 module Data.Queue
   ( -- * Queue
-    Queue (Empty, Pop),
+    Queue (Empty, Front),
 
     -- ** Initialization
     empty,
@@ -43,8 +43,8 @@ module Data.Queue
   )
 where
 
-import qualified Data.List as List
-import qualified Data.Traversable as Traversable
+import Data.List qualified as List
+import Data.Traversable qualified as Traversable
 import GHC.Exts (Any)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (map, span, traverse)
@@ -57,43 +57,40 @@ data Queue a
       [a]
       -- The back of the queue, in reverse order.
       [a]
-      -- Some tail of the front of the queue. `Any` to show we don't care about the values, just the spine.
+      -- Some tail of the front of the queue.
       -- Invariant: length = length of front - length of back
-      [Any]
+      Schedule
   deriving stock (Functor)
 
 instance Monoid (Queue a) where
   mempty = empty
   mappend = (<>)
 
+-- | \(\mathcal{O}(n)\), where \(n\) is the size of the first argument.
 instance Semigroup (Queue a) where
-  xs <> ys =
-    case pop ys of
-      Nothing -> xs
-      Just (y, ys1) -> push y xs <> ys1
+  Empty <> ys = ys
+  Front x xs <> ys = push x (xs <> ys)
 
 instance (Show a) => Show (Queue a) where
   show = show . toList
 
+-- | An empty queue.
 pattern Empty :: Queue a
 pattern Empty <- Queue [] _ _
 
-pattern Pop :: a -> Queue a -> Queue a
-pattern Pop x xs <- (pop -> Just (x, xs))
+-- | The front of a queue, and the rest of it.
+pattern Front :: a -> Queue a -> Queue a
+pattern Front x xs <- (pop -> Just (x, xs))
 
-{-# COMPLETE Empty, Pop #-}
+{-# COMPLETE Empty, Front #-}
 
 -- Queue smart constructor.
 --
 -- `queue xs ys zs` is always called when |zs| = |xs| - |ys| + 1 (i.e. just after a push or pop)
-queue :: [a] -> [a] -> [Any] -> Queue a
+queue :: [a] -> [a] -> Schedule -> Queue a
 queue xs ys = \case
-  [] -> let xs1 = rotate ys [] xs in Queue xs1 [] (schedule xs1)
-  _ : zs -> Queue xs ys zs
-
-schedule :: [a] -> [Any]
-schedule =
-  unsafeCoerce
+  NoMoreWorkToDo -> let xs1 = rotate ys [] xs in Queue xs1 [] (schedule xs1)
+  DidWork zs -> Queue xs ys zs
 
 -- rotate ys zs xs = xs ++ reverse ys ++ zs
 rotate :: [a] -> NonEmptyList a -> [a] -> [a]
@@ -104,12 +101,14 @@ rotate (NonEmptyList y ys) zs = \case
 -- | An empty queue.
 empty :: Queue a
 empty =
-  Queue [] [] []
+  Queue [] [] NoMoreWorkToDo
 
 -- | A singleton queue.
 singleton :: a -> Queue a
 singleton x =
-  Queue [x] [] [undefined]
+  Queue xs [] (schedule xs)
+  where
+    xs = [x]
 
 -- | \(\mathcal{O}(1)\). Push an element onto the back of a queue, to be popped last.
 push :: a -> Queue a -> Queue a
@@ -125,7 +124,9 @@ pop = \case
 -- | \(\mathcal{O}(1)\). Push an element onto the front of a queue, to be popped next.
 pushFront :: a -> Queue a -> Queue a
 pushFront x (Queue xs ys zs) =
-  Queue (x : xs) ys (undefined : zs) -- n.b. smart constructor not needed here
+  -- smart constructor not needed here
+  -- we also add useless work to the schedule to maintain the convenient rotate-on-empty-schedule trigger
+  Queue (x : xs) ys (delay x zs)
 
 -- | Pop elements off of the front of a queue while a predicate is satisfied.
 popWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
@@ -139,7 +140,7 @@ span p =
   where
     go acc = \case
       Empty -> (acc, empty)
-      Pop x xs
+      Front x xs
         | p x -> go (push x acc) xs
         | otherwise -> (acc, pushFront x xs)
 
@@ -147,7 +148,7 @@ span p =
 isEmpty :: Queue a -> Bool
 isEmpty = \case
   Empty -> True
-  Pop _ _ -> False
+  Front _ _ -> False
 
 -- | \(\mathcal{O}(n)\). Apply a function to each element in a queue.
 map :: (a -> b) -> Queue a -> Queue b
@@ -178,6 +179,31 @@ fromList xs =
 toList :: Queue a -> [a]
 toList =
   List.unfoldr pop
+
+------------------------------------------------------------------------------------------------------------------------
+-- Schedule utils
+
+type Schedule =
+  [Any]
+
+pattern NoMoreWorkToDo :: Schedule
+pattern NoMoreWorkToDo = []
+
+pattern DidWork :: Schedule -> Schedule
+pattern DidWork xs <- _ : xs
+
+{-# COMPLETE NoMoreWorkToDo, DidWork #-}
+
+schedule :: [a] -> Schedule
+schedule =
+  unsafeCoerce
+
+delay :: a -> Schedule -> Schedule
+delay x =
+  (unsafeCoerce x :)
+
+------------------------------------------------------------------------------------------------------------------------
+-- Non-empty list utils
 
 type NonEmptyList a =
   [a]

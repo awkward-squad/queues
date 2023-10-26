@@ -39,6 +39,8 @@ common component
     LambdaCase
     OverloadedStrings
     PatternSynonyms
+    RankNTypes
+    ScopedTypeVariables
     ViewPatterns
   default-language: Haskell2010
   ghc-options:
