@@ -44,11 +44,13 @@ module Queue
   )
 where
 
+import Data.Foldable qualified as Foldable
 import Data.List qualified as List
 import GHC.Exts (Any)
-import NonEmptyList
+import GHC.TypeError qualified as TypeError
+import Queue.Internal.Prelude
 import Unsafe.Coerce (unsafeCoerce)
-import Prelude hiding (span)
+import Prelude hiding (foldMap, length, span)
 
 -- | A queue data structure with \(\mathcal{O}(1)\) worst-case push and pop.
 data Queue a
@@ -65,6 +67,23 @@ data Queue a
 instance (Eq a) => Eq (Queue a) where
   xs == ys =
     toList xs == toList ys
+
+instance Foldable Queue where
+  foldMap f (Queue xs ys _) =
+    Foldable.foldMap f xs <> listFoldMapBackwards f ys
+  elem x (Queue xs ys _) = elem x xs || elem x ys
+  null = isEmpty
+  toList = toList
+
+instance
+  ( TypeError.TypeError
+      ( 'TypeError.Text "The real-time queue does not admit a Functor instance."
+          'TypeError.:$$: 'TypeError.Text "Perhaps you would like to use the amortized queue instead?"
+      )
+  ) =>
+  Functor Queue
+  where
+  fmap = undefined
 
 instance Monoid (Queue a) where
   mempty = empty

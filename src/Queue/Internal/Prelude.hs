@@ -1,6 +1,7 @@
-module NonEmptyList
+module Queue.Internal.Prelude
   ( NonEmptyList,
     pattern NonEmptyList,
+    listFoldMapBackwards,
   )
 where
 
@@ -12,3 +13,11 @@ pattern NonEmptyList :: a -> [a] -> NonEmptyList a
 pattern NonEmptyList x xs = x : xs
 
 {-# COMPLETE NonEmptyList #-}
+
+listFoldMapBackwards :: (Monoid m) => (a -> m) -> [a] -> m
+listFoldMapBackwards f =
+  go mempty
+  where
+    go acc = \case
+      [] -> acc
+      z : zs -> go (f z <> acc) zs

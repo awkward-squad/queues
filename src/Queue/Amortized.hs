@@ -36,6 +36,11 @@ module Queue.Amortized
 
     -- * Queries
     isEmpty,
+    length,
+
+    -- * Transformations
+    map,
+    traverse,
 
     -- * List conversions
     fromList,
@@ -43,9 +48,11 @@ module Queue.Amortized
   )
 where
 
+import Data.Foldable qualified as Foldable
 import Data.List qualified as List
-import NonEmptyList
-import Prelude hiding (length, span)
+import Data.Traversable qualified as Traversable
+import Queue.Internal.Prelude
+import Prelude hiding (foldMap, length, map, span, traverse)
 
 -- | A queue data structure with \(\mathcal{O}(1)\) amortized push and pop.
 data Queue a
@@ -62,10 +69,19 @@ data Queue a
       [a]
       -- Length of tail
       {-# UNPACK #-} !Int
+  deriving stock (Functor)
 
 instance (Eq a) => Eq (Queue a) where
   xs == ys =
     length xs == length ys && toList xs == toList ys
+
+instance Foldable Queue where
+  foldMap f (Queue xs ms _ ys _) =
+    Foldable.foldMap f xs <> Foldable.foldMap (Foldable.foldMap f) ms <> listFoldMapBackwards f ys
+  elem x (Queue xs ms _ ys _) = elem x xs || any (elem x) ms || elem x ys
+  length = length
+  null = isEmpty
+  toList = toList
 
 instance Monoid (Queue a) where
   mempty = empty
@@ -80,6 +96,9 @@ instance Semigroup (Queue a) where
 
 instance (Show a) => Show (Queue a) where
   show = show . toList
+
+instance Traversable Queue where
+  traverse = traverse
 
 -- | An empty queue.
 pattern Empty :: Queue a
@@ -165,6 +184,28 @@ append xs (Front y ys) = append (push y xs) ys
 prepend :: Queue a -> Queue a -> Queue a
 prepend Empty ys = ys
 prepend (Front x xs) ys = pushFront x (prepend xs ys)
+
+-- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
+map :: (a -> b) -> Queue a -> Queue b
+map =
+  fmap
+
+-- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
+traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
+traverse f (Queue xs ms xlen ys ylen) =
+  Queue
+    <$> Traversable.traverse f xs
+    <*> Traversable.traverse (Traversable.traverse f) ms
+    <*> pure xlen
+    <*> backwards ys
+    <*> pure ylen
+  where
+    backwards =
+      go
+      where
+        go = \case
+          [] -> pure []
+          z : zs -> flip (:) <$> go zs <*> f z
 
 -- | \(\mathcal{O}(n)\). Construct a queue from a list, where the head of the list corresponds to the front of the
 -- queue.

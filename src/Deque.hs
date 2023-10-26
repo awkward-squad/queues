@@ -34,10 +34,13 @@ module Deque
 where
 
 import Data.Bits (unsafeShiftR)
+import Data.Foldable qualified as Foldable
 import Data.List qualified as List
 import GHC.Exts (Any)
+import GHC.TypeError qualified as TypeError
+import Queue.Internal.Prelude
 import Unsafe.Coerce (unsafeCoerce)
-import Prelude hiding (length, reverse)
+import Prelude hiding (foldMap, length, reverse)
 
 -- | A double-ended queue data structure with \(\mathcal{O}(1)\) worst-case push and pop.
 data Deque a
@@ -52,6 +55,24 @@ data Deque a
 instance (Eq a) => Eq (Deque a) where
   xs == ys =
     length xs == length ys && toList xs == toList ys
+
+instance Foldable Deque where
+  foldMap f (Deque xs _ _ ys _ _) =
+    Foldable.foldMap f xs <> listFoldMapBackwards f ys
+  elem x (Deque xs _ _ ys _ _) = elem x xs || elem x ys
+  length = length
+  null = isEmpty
+  toList = toList
+
+instance
+  ( TypeError.TypeError
+      ( 'TypeError.Text "The real-time deque does not admit a Functor instance."
+          'TypeError.:$$: 'TypeError.Text "Perhaps you would like to use the amortized deque instead?"
+      )
+  ) =>
+  Functor Deque
+  where
+  fmap = undefined
 
 instance Monoid (Deque a) where
   mempty = empty
