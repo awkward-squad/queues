@@ -30,7 +30,7 @@ module Queue.Amortized
     push,
     pop,
 
-    -- * Extended interface
+    -- ** Extended interface
     pushFront,
     popWhile,
 
@@ -132,18 +132,18 @@ singleton :: a -> Queue a
 singleton x =
   Queue [x] [] 1 [] 0
 
--- | \(\mathcal{O}(1)\). Push an element onto the back of a queue, to be popped last.
+-- | \(\mathcal{O}(1)\) amortized. Push an element onto the back of a queue, to be popped last.
 push :: a -> Queue a -> Queue a
 push y (Queue xs ms xlen ys ylen) =
   makeQueue xs ms xlen (y : ys) (ylen + 1)
 
--- | \(\mathcal{O}(1)\). Pop an element off of the front of a queue.
+-- | \(\mathcal{O}(1)\) amortized. Pop an element off of the front of a queue.
 pop :: Queue a -> Maybe (a, Queue a)
 pop = \case
   Queue [] _ _ _ _ -> Nothing
   Queue (x : xs) ms xlen ys ylen -> Just (x, makeQueue xs ms (xlen - 1) ys ylen)
 
--- | \(\mathcal{O}(1)\). Push an element onto the front of a queue, to be popped next.
+-- | \(\mathcal{O}(1)\) amortized. Push an element onto the front of a queue, to be popped next.
 pushFront :: a -> Queue a -> Queue a
 pushFront x (Queue xs ms xlen ys ylen) =
   -- smart constructor not needed here
@@ -216,5 +216,5 @@ fromList xs =
 -- | \(\mathcal{O}(n)\). Construct a list from a queue, where the head of the list corresponds to the front of the
 -- queue.
 toList :: Queue a -> [a]
-toList =
-  List.unfoldr pop
+toList (Queue xs ms _ ys _) =
+  xs ++ concat ms ++ reverse ys

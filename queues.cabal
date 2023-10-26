@@ -76,7 +76,7 @@ test-suite test
   build-depends:
     base,
     hedgehog ^>= 1.4,
-    queue,
+    queues,
   ghc-options: -rtsopts -threaded "-with-rtsopts=-N4"
   hs-source-dirs: test
   main-is: Main.hs

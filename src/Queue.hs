@@ -31,7 +31,7 @@ module Queue
     push,
     pop,
 
-    -- * Extended interface
+    -- ** Extended interface
     pushFront,
     popWhile,
 
@@ -45,7 +45,6 @@ module Queue
 where
 
 import Data.Foldable qualified as Foldable
-import Data.List qualified as List
 import GHC.Exts (Any)
 import GHC.TypeError qualified as TypeError
 import Queue.Internal.Prelude
@@ -183,8 +182,8 @@ fromList xs =
 -- | \(\mathcal{O}(n)\). Construct a list from a queue, where the head of the list corresponds to the front of the
 -- queue.
 toList :: Queue a -> [a]
-toList =
-  List.unfoldr pop
+toList (Queue xs ys _) =
+  xs ++ reverse ys
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Schedule utils

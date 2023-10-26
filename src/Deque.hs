@@ -175,12 +175,12 @@ reverse :: Deque a -> Deque a
 reverse (Deque xs xlen xc ys ylen yc) =
   Deque ys ylen yc xs xlen xc
 
--- @append xs ys@ pushes @ys@ onto the back of @ys@.
+-- O(ys). @append xs ys@ pushes @ys@ onto the back of @ys@.
 append :: Deque a -> Deque a -> Deque a
 append xs Empty = xs
 append xs (Front y ys) = append (push y xs) ys
 
--- @prepend xs ys@ pushes @xs@ onto the front of @ys@.
+-- O(xs). @prepend xs ys@ pushes @xs@ onto the front of @ys@. O(xs).
 prepend :: Deque a -> Deque a -> Deque a
 prepend Empty ys = ys
 prepend (Back xs x) ys = prepend xs (pushFront x ys)
@@ -194,8 +194,8 @@ fromList =
 -- | \(\mathcal{O}(n)\). Construct a list from a deque, where the head of the list corresponds to the front of the
 -- deque.
 toList :: Deque a -> [a]
-toList =
-  List.unfoldr pop
+toList (Deque xs _ _ ys _ _) =
+  xs ++ List.reverse ys
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Schedule utils
