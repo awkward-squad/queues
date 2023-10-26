@@ -33,10 +33,6 @@ module Data.Queue
     -- * Queries
     isEmpty,
 
-    -- * Transformations
-    map,
-    traverse,
-
     -- * List conversions
     fromList,
     toList,
@@ -44,7 +40,6 @@ module Data.Queue
 where
 
 import Data.List qualified as List
-import Data.Traversable qualified as Traversable
 import GHC.Exts (Any)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (map, span, traverse)
@@ -60,7 +55,6 @@ data Queue a
       -- Some tail of the front of the queue.
       -- Invariant: length = length of front - length of back
       Schedule
-  deriving stock (Functor)
 
 instance Monoid (Queue a) where
   mempty = empty
@@ -149,24 +143,6 @@ isEmpty :: Queue a -> Bool
 isEmpty = \case
   Empty -> True
   Front _ _ -> False
-
--- | \(\mathcal{O}(n)\). Apply a function to each element in a queue.
-map :: (a -> b) -> Queue a -> Queue b
-map =
-  fmap
-
--- | \(\mathcal{O}(n)\). Apply a function (in a context) to each element in a queue.
-traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
-traverse f (Queue xs ys zs) =
-  Queue
-    <$> Traversable.traverse f xs
-    <*> traverseBackwards f ys
-    <*> pure zs
-
-traverseBackwards :: (Applicative f) => (a -> f b) -> [a] -> f [b]
-traverseBackwards f = \case
-  [] -> pure []
-  x : xs -> flip (:) <$> traverseBackwards f xs <*> f x
 
 -- | \(\mathcal{O}(1)\). Construct a queue from a list, where the head of the list corresponds to the front of the
 -- queue.

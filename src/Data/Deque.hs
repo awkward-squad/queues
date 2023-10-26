@@ -20,7 +20,6 @@ module Data.Deque
     length,
 
     -- * Transformations
-    map,
     reverse,
 
     -- * List conversions
@@ -44,7 +43,6 @@ data Deque a
       [a]
       {-# UNPACK #-} !Int
       Schedule
-  deriving stock (Functor)
 
 instance Monoid (Deque a) where
   mempty = empty
@@ -141,11 +139,6 @@ isEmpty (Deque _ xlen _ _ ylen _) =
 length :: Deque a -> Int
 length (Deque _ xlen _ _ ylen _) =
   xlen + ylen
-
--- | \(\mathcal{O}(n)\). Apply a function to each element in a deque.
-map :: (a -> b) -> Deque a -> Deque b
-map =
-  fmap
 
 -- | \(\mathcal{O}(1)\). Reverse a deque.
 reverse :: Deque a -> Deque a
