@@ -11,7 +11,7 @@ maintainer: Mitchell Rosen <mitchellwrosen@gmail.com>, Travis Staton <hello@trav
 name: queues
 stability: experimental
 synopsis: Queue and deque data structures.
-tested-with: GHC == 9.2.8, GHC == 9.4.7, GHC == 9.6.3
+tested-with: GHC == 9.4.7, GHC == 9.6.3, GHC == 9.8.1
 version: 0.1.0
 
 description:
