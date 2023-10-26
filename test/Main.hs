@@ -1,7 +1,9 @@
 module Main (main) where
 
-import Control.Applicative ((<|>))
+import Data.Bifunctor (second)
+import Data.Foldable qualified as Foldable
 import Data.List qualified as List
+import Data.Sequence qualified as Seq
 import Data.Word
 import Deque (Deque)
 import Deque qualified
@@ -19,105 +21,27 @@ main = do
 
 tests :: [(PropertyName, PropertyT IO ())]
 tests =
-  [ ( "real-time queue: toList . fromList = id",
+  [ ( "[queue amortized-queue deque] `toList . fromList = id`",
       do
         list <- forAll generateList
-        Queue.toList (Queue.fromList list) === list
+        (Queue.toList . Queue.fromList) list === list
+        (Queue.Amortized.toList . Queue.Amortized.fromList) list === list
+        (Deque.toList . Deque.fromList) list === list
     ),
-    ( "real-time queue: push + pop",
+    ( "[queue amortized-queue      ] `push/pushFront/pop state machine tests`",
       do
-        (queue, x) <- forAll ((,) <$> generateQueue <*> generateWord8)
-        queueLast (Queue.push x queue) === Just x
+        actions <- forAll (generateQueueActions 1000)
+        let expected = seqApplyQueueActions actions
+        queueApplyActions actions === expected
+        amortizedQueueApplyActions actions === expected
     ),
-    ( "real-time queue: pushFront + pop",
+    ( "[                      deque] `push/pushFront/pop/popBack state machine tests`",
       do
-        (queue, x) <- forAll ((,) <$> generateQueue <*> generateWord8)
-        Queue.pop (Queue.pushFront x queue) === Just (x, queue)
-    ),
-    ( "amortized queue: toList . fromList = id",
-      do
-        list <- forAll generateList
-        Queue.Amortized.toList (Queue.Amortized.fromList list) === list
-    ),
-    ( "amortized queue: push + pop",
-      do
-        (queue, x) <- forAll ((,) <$> generateAmortizedQueue <*> generateWord8)
-        amortizedQueueLast (Queue.Amortized.push x queue) === Just x
-    ),
-    ( "amortized queue: pushFront + pop",
-      do
-        (queue, x) <- forAll ((,) <$> generateAmortizedQueue <*> generateWord8)
-        Queue.Amortized.pop (Queue.Amortized.pushFront x queue) === Just (x, queue)
-    ),
-    ( "real-time deque: toList . fromList = id",
-      do
-        list <- forAll generateList
-        Deque.toList (Deque.fromList list) === list
-    ),
-    ( "real-time deque: push + pop",
-      do
-        (deque, x) <- forAll ((,) <$> generateDeque <*> generateWord8)
-        dequeSlowLast (Deque.push x deque) === Just x
-    ),
-    ( "real-time deque: push + popBack",
-      do
-        (deque, x) <- forAll ((,) <$> generateDeque <*> generateWord8)
-        Deque.popBack (Deque.push x deque) === Just (deque, x)
-    ),
-    ( "real-time deque: pushFront + pop",
-      do
-        (deque, x) <- forAll ((,) <$> generateDeque <*> generateWord8)
-        Deque.pop (Deque.pushFront x deque) === Just (x, deque)
-    ),
-    ( "real-time deque: pushFront + popBack",
-      do
-        (deque, x) <- forAll ((,) <$> generateDeque <*> generateWord8)
-        dequeSlowHead (Deque.pushFront x deque) === Just x
+        actions <- forAll (generateDequeActions 1000)
+        let expected = seqApplyDequeActions actions
+        dequeApplyActions actions === expected
     )
   ]
-
-------------------------------------------------------------------------------------------------------------------------
--- Supplemental API
-
--- O(n). Get the last element of a queue.
-queueLast :: Queue a -> Maybe a
-queueLast =
-  go Nothing
-  where
-    go :: Maybe a -> Queue a -> Maybe a
-    go acc = \case
-      Queue.Empty -> acc
-      Queue.Front x xs -> go (Just x <|> acc) xs
-
--- O(n). Get the last element of a queue.
-amortizedQueueLast :: Queue.Amortized.Queue a -> Maybe a
-amortizedQueueLast =
-  go Nothing
-  where
-    go :: Maybe a -> Queue.Amortized.Queue a -> Maybe a
-    go acc = \case
-      Queue.Amortized.Empty -> acc
-      Queue.Amortized.Front x xs -> go (Just x <|> acc) xs
-
--- O(n). Get the first element of a deque by popping from the back.
-dequeSlowHead :: Deque a -> Maybe a
-dequeSlowHead =
-  go Nothing
-  where
-    go :: Maybe a -> Deque a -> Maybe a
-    go acc = \case
-      Deque.Empty -> acc
-      Deque.Back xs x -> go (Just x <|> acc) xs
-
--- O(n). Get the last element of a deque by popping from the front.
-dequeSlowLast :: Deque a -> Maybe a
-dequeSlowLast =
-  go Nothing
-  where
-    go :: Maybe a -> Deque a -> Maybe a
-    go acc = \case
-      Deque.Empty -> acc
-      Deque.Front x xs -> go (Just x <|> acc) xs
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Generators
@@ -126,46 +50,61 @@ generateList :: Gen [Word8]
 generateList =
   Gen.list (Range.linear 0 200) generateWord8
 
-generateQueue :: Gen (Queue Word8)
-generateQueue = do
-  List.foldl' applyQueueAction Queue.empty <$> generateQueueActions
-  where
-    applyQueueAction queue = \case
-      QueueActionPush x -> Queue.push x queue
-      QueueActionPop -> maybe queue snd (Queue.pop queue)
-
-generateAmortizedQueue :: Gen (Queue.Amortized.Queue Word8)
-generateAmortizedQueue = do
-  List.foldl' applyQueueAction Queue.Amortized.empty <$> generateQueueActions
-  where
-    applyQueueAction queue = \case
-      QueueActionPush x -> Queue.Amortized.push x queue
-      QueueActionPop -> maybe queue snd (Queue.Amortized.pop queue)
-
 data QueueAction
   = QueueActionPush !Word8
+  | QueueActionPushFront !Word8
   | QueueActionPop
   deriving stock (Show)
 
-generateQueueActions :: Gen [QueueAction]
-generateQueueActions =
+generateQueueActions :: Int -> Gen [QueueAction]
+generateQueueActions n =
   Gen.list
-    (Range.linear 0 1000)
+    (Range.linear 0 n)
     ( Gen.frequency
-        [ (10, QueueActionPush <$> generateWord8),
+        [ (8, QueueActionPush <$> generateWord8),
+          (2, QueueActionPushFront <$> generateWord8),
           (2, pure QueueActionPop)
         ]
     )
 
-generateDeque :: Gen (Deque Word8)
-generateDeque = do
-  List.foldl' applyDequeAction Deque.empty <$> generateDequeActions
+seqApplyQueueActions :: [QueueAction] -> ([Maybe Word8], [Word8])
+seqApplyQueueActions =
+  second Foldable.toList . List.foldl' apply ([], Seq.empty)
   where
-    applyDequeAction deque = \case
-      DequeActionPush x -> Deque.push x deque
-      DequeActionPushFront x -> Deque.pushFront x deque
-      DequeActionPop -> maybe deque snd (Deque.pop deque)
-      DequeActionPopBack -> maybe deque fst (Deque.popBack deque)
+    apply :: ([Maybe Word8], Seq.Seq Word8) -> QueueAction -> ([Maybe Word8], Seq.Seq Word8)
+    apply (pops, queue) = \case
+      QueueActionPush x -> (pops, queue Seq.|> x)
+      QueueActionPushFront x -> (pops, x Seq.<| queue)
+      QueueActionPop ->
+        case queue of
+          Seq.Empty -> (Nothing : pops, queue)
+          x Seq.:<| queue1 -> (Just x : pops, queue1)
+
+queueApplyActions :: [QueueAction] -> ([Maybe Word8], [Word8])
+queueApplyActions =
+  second Queue.toList . List.foldl' apply ([], Queue.empty)
+  where
+    apply :: ([Maybe Word8], Queue Word8) -> QueueAction -> ([Maybe Word8], Queue Word8)
+    apply (pops, queue) = \case
+      QueueActionPush x -> (pops, Queue.push x queue)
+      QueueActionPushFront x -> (pops, Queue.pushFront x queue)
+      QueueActionPop ->
+        case queue of
+          Queue.Empty -> (Nothing : pops, queue)
+          Queue.Front x queue1 -> (Just x : pops, queue1)
+
+amortizedQueueApplyActions :: [QueueAction] -> ([Maybe Word8], [Word8])
+amortizedQueueApplyActions =
+  second Queue.Amortized.toList . List.foldl' apply ([], Queue.Amortized.empty)
+  where
+    apply :: ([Maybe Word8], Queue.Amortized.Queue Word8) -> QueueAction -> ([Maybe Word8], Queue.Amortized.Queue Word8)
+    apply (pops, queue) = \case
+      QueueActionPush x -> (pops, Queue.Amortized.push x queue)
+      QueueActionPushFront x -> (pops, Queue.Amortized.pushFront x queue)
+      QueueActionPop ->
+        case queue of
+          Queue.Amortized.Empty -> (Nothing : pops, queue)
+          Queue.Amortized.Front x queue1 -> (Just x : pops, queue1)
 
 data DequeAction
   = DequeActionPush !Word8
@@ -174,10 +113,10 @@ data DequeAction
   | DequeActionPopBack
   deriving stock (Show)
 
-generateDequeActions :: Gen [DequeAction]
-generateDequeActions =
+generateDequeActions :: Int -> Gen [DequeAction]
+generateDequeActions n =
   Gen.list
-    (Range.linear 0 1000)
+    (Range.linear 0 n)
     ( Gen.frequency
         [ (10, DequeActionPush <$> generateWord8),
           (10, DequeActionPushFront <$> generateWord8),
@@ -185,6 +124,40 @@ generateDequeActions =
           (2, pure DequeActionPopBack)
         ]
     )
+
+seqApplyDequeActions :: [DequeAction] -> ([Maybe Word8], [Word8])
+seqApplyDequeActions =
+  second Foldable.toList . List.foldl' apply ([], Seq.empty)
+  where
+    apply :: ([Maybe Word8], Seq.Seq Word8) -> DequeAction -> ([Maybe Word8], Seq.Seq Word8)
+    apply (pops, queue) = \case
+      DequeActionPush x -> (pops, queue Seq.|> x)
+      DequeActionPushFront x -> (pops, x Seq.<| queue)
+      DequeActionPop ->
+        case queue of
+          Seq.Empty -> (Nothing : pops, queue)
+          x Seq.:<| queue1 -> (Just x : pops, queue1)
+      DequeActionPopBack ->
+        case queue of
+          Seq.Empty -> (Nothing : pops, queue)
+          queue1 Seq.:|> x -> (Just x : pops, queue1)
+
+dequeApplyActions :: [DequeAction] -> ([Maybe Word8], [Word8])
+dequeApplyActions =
+  second Deque.toList . List.foldl' apply ([], Deque.empty)
+  where
+    apply :: ([Maybe Word8], Deque Word8) -> DequeAction -> ([Maybe Word8], Deque Word8)
+    apply (pops, queue) = \case
+      DequeActionPush x -> (pops, Deque.push x queue)
+      DequeActionPushFront x -> (pops, Deque.pushFront x queue)
+      DequeActionPop ->
+        case queue of
+          Deque.Empty -> (Nothing : pops, queue)
+          Deque.Front x queue1 -> (Just x : pops, queue1)
+      DequeActionPopBack ->
+        case queue of
+          Deque.Empty -> (Nothing : pops, queue)
+          Deque.Back queue1 x -> (Just x : pops, queue1)
 
 generateWord8 :: Gen Word8
 generateWord8 =
