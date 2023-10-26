@@ -1,3 +1,6 @@
+-- It seems this is only needed on GHC <= 9.4
+{-# LANGUAGE UndecidableInstances #-}
+
 -- | A double-ended queue data structure with \(\mathcal{O}(1)\) worst-case push and pop, as described in
 --
 --   * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.

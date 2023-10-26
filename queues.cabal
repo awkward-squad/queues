@@ -62,7 +62,7 @@ common component
 library
   import: component
   build-depends:
-    base ^>= 4.14 || ^>= 4.15 || ^>= 4.16 || ^>= 4.17 || ^>= 4.18 || ^>= 4.19,
+    base ^>= 4.17 || ^>= 4.18 || ^>= 4.19,
   exposed-modules:
     Deque
     Queue
@@ -75,7 +75,7 @@ test-suite test
   import: component
   build-depends:
     base,
-    containers ^>= 0.6.8 || ^>= 0.7,
+    containers ^>= 0.6.7 || ^>= 0.7,
     hedgehog ^>= 1.4,
     queues,
   ghc-options: -rtsopts -threaded "-with-rtsopts=-N4"
