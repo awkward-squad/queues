@@ -1,6 +1,5 @@
--- | A queue data structure with \(\mathcal{O}(1)\) worst-case push and pop, as described in
+-- | A queue data structure with \(\mathcal{O}(1)\) amortized push and pop, as described in
 --
---   * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
 --
 -- A queue can be thought to have a "back" where new elements are pushed, and a "front" where elements are popped in the
@@ -17,9 +16,9 @@
 --
 -- This module is intended to be imported qualified:
 --
--- > import Queue (Queue)
--- > import Queue qualified
-module Queue
+-- > import Queue.Amortized (Queue)
+-- > import Queue.Amortized qualified as Queue
+module Queue.Amortized
   ( -- * Queue
     Queue (Empty, Front),
 
@@ -45,35 +44,39 @@ module Queue
 where
 
 import Data.List qualified as List
-import GHC.Exts (Any)
 import NonEmptyList
-import Unsafe.Coerce (unsafeCoerce)
-import Prelude hiding (span)
+import Prelude hiding (length, span)
 
--- | A queue data structure with \(\mathcal{O}(1)\) worst-case push and pop.
+-- | A queue data structure with \(\mathcal{O}(1)\) amortized push and pop.
 data Queue a
   = Queue
-      -- The front of the queue.
-      -- Invariant: length >= length of back
+      -- The head of the queue, e.g. [1,2,3]
+      -- Invariant: empty iff queue is empty
       [a]
-      -- The back of the queue, in reverse order.
+      -- A list of rotations, e.g. [ reverse [6,5,4], reverse [12,11,10,9,8,7] ]
+      [NonEmptyList a]
+      -- Length of head + all elems in queue of rotations
+      {-# UNPACK #-} !Int
+      -- The reversed tail of the queue, e.g. [50,49,48]
+      -- Invariant: not longer than head + all elems in queue of rotations
       [a]
-      -- Some tail of the front of the queue.
-      -- Invariant: length = length of front - length of back
-      Schedule
+      -- Length of tail
+      {-# UNPACK #-} !Int
 
 instance (Eq a) => Eq (Queue a) where
   xs == ys =
-    toList xs == toList ys
+    length xs == length ys && toList xs == toList ys
 
 instance Monoid (Queue a) where
   mempty = empty
   mappend = (<>)
 
--- | \(\mathcal{O}(n)\), where \(n\) is the size of the first argument.
+-- | \(\mathcal{O}(n)\), where \(n\) is the size of the smaller argument.
 instance Semigroup (Queue a) where
-  Empty <> ys = ys
-  Front x xs <> ys = push x (xs <> ys)
+  xs <> ys
+    -- Either push xs onto the front of ys, or ys onto the back of xs, depending on which one would be fewer pushes.
+    | length xs < length ys = prepend xs ys
+    | otherwise = append xs ys
 
 instance (Show a) => Show (Queue a) where
   show = show . toList
@@ -89,49 +92,43 @@ pattern Front x xs <- (pop -> Just (x, xs))
 {-# COMPLETE Empty, Front #-}
 
 -- Queue smart constructor.
---
--- `queue xs ys zs` is always called when |zs| = |xs| - |ys| + 1 (i.e. just after a push or pop)
-makeQueue :: [a] -> [a] -> Schedule -> Queue a
-makeQueue xs ys = \case
-  NoMoreWorkToDo -> let xs1 = rotate ys [] xs in Queue xs1 [] (schedule xs1)
-  DidWork zs -> Queue xs ys zs
+makeQueue :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> Queue a
+makeQueue [] [] _ ys ylen = Queue ys [] ylen [] 0
+makeQueue [] (m : ms) xlen ys ylen = makeQueue1 m ms xlen ys ylen
+makeQueue xs ms xlen ys ylen = makeQueue1 xs ms xlen ys ylen
 
--- rotate ys zs xs = xs ++ reverse ys ++ zs
--- Precondition: |ys| = |xs| + 1
-rotate :: NonEmptyList a -> [a] -> [a] -> [a]
-rotate (NonEmptyList y ys) zs = \case
-  [] -> y : zs
-  x : xs -> x : rotate ys (y : zs) xs
+-- Queue smart constructor.
+makeQueue1 :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> Queue a
+makeQueue1 xs ms xlen ys ylen
+  | ylen <= xlen = Queue xs ms xlen ys ylen
+  | otherwise = Queue xs (ms ++ [reverse ys]) (xlen + ylen) [] 0
 
 -- | An empty queue.
 empty :: Queue a
 empty =
-  Queue [] [] NoMoreWorkToDo
+  Queue [] [] 0 [] 0
 
 -- | A singleton queue.
 singleton :: a -> Queue a
 singleton x =
-  Queue xs [] (schedule xs)
-  where
-    xs = [x]
+  Queue [x] [] 1 [] 0
 
 -- | \(\mathcal{O}(1)\). Push an element onto the back of a queue, to be popped last.
 push :: a -> Queue a -> Queue a
-push y (Queue xs ys zs) =
-  makeQueue xs (y : ys) zs
+push y (Queue xs ms xlen ys ylen) =
+  makeQueue xs ms xlen (y : ys) (ylen + 1)
 
 -- | \(\mathcal{O}(1)\). Pop an element off of the front of a queue.
 pop :: Queue a -> Maybe (a, Queue a)
 pop = \case
-  Queue [] _ _ -> Nothing
-  Queue (x : xs) ys zs -> Just (x, makeQueue xs ys zs)
+  Queue [] _ _ _ _ -> Nothing
+  Queue (x : xs) ms xlen ys ylen -> Just (x, makeQueue xs ms (xlen - 1) ys ylen)
 
 -- | \(\mathcal{O}(1)\). Push an element onto the front of a queue, to be popped next.
 pushFront :: a -> Queue a -> Queue a
-pushFront x (Queue xs ys zs) =
+pushFront x (Queue xs ms xlen ys ylen) =
   -- smart constructor not needed here
-  -- we also add useless work to the schedule to maintain the convenient rotate-on-empty-schedule trigger
-  Queue (x : xs) ys (delay x zs)
+  Queue (x : xs) ms (xlen + 1) ys ylen
 
 -- | Pop elements off of the front of a queue while a predicate is satisfied.
 popWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
@@ -151,40 +148,32 @@ span p =
 
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: Queue a -> Bool
-isEmpty = \case
-  Queue [] _ _ -> True
-  _ -> False
+isEmpty (Queue _ _ xlen _ _) =
+  xlen == 0
 
--- | \(\mathcal{O}(1)\). Construct a queue from a list, where the head of the list corresponds to the front of the
+-- | \(\mathcal{O}(1)\). How many elements are in a deque?
+length :: Queue a -> Int
+length (Queue _ _ xlen _ ylen) =
+  xlen + ylen
+
+-- @append xs ys@ pushes @ys@ onto the back of @ys@.
+append :: Queue a -> Queue a -> Queue a
+append xs Empty = xs
+append xs (Front y ys) = append (push y xs) ys
+
+-- @prepend xs ys@ pushes @xs@ onto the front of @ys@.
+prepend :: Queue a -> Queue a -> Queue a
+prepend Empty ys = ys
+prepend (Front x xs) ys = pushFront x (prepend xs ys)
+
+-- | \(\mathcal{O}(n)\). Construct a queue from a list, where the head of the list corresponds to the front of the
 -- queue.
 fromList :: [a] -> Queue a
 fromList xs =
-  Queue xs [] (schedule xs)
+  Queue xs [] (List.length xs) [] 0
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue, where the head of the list corresponds to the front of the
 -- queue.
 toList :: Queue a -> [a]
 toList =
   List.unfoldr pop
-
-------------------------------------------------------------------------------------------------------------------------
--- Schedule utils
-
-type Schedule =
-  [Any]
-
-pattern NoMoreWorkToDo :: Schedule
-pattern NoMoreWorkToDo = []
-
-pattern DidWork :: Schedule -> Schedule
-pattern DidWork xs <- _ : xs
-
-{-# COMPLETE NoMoreWorkToDo, DidWork #-}
-
-schedule :: [a] -> Schedule
-schedule =
-  unsafeCoerce
-
-delay :: a -> Schedule -> Schedule
-delay x =
-  (unsafeCoerce x :)

@@ -15,14 +15,12 @@ tested-with: GHC == 9.2.8, GHC == 9.4.7, GHC == 9.6.3
 version: 0.1.0
 
 description:
-  A queue and deque data structure, as described in
+  Queue and deque data structures, as described in
   .
     * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
     * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
-  .
-  These data structures support \(\mathcal{O}(1)\) worst-case push and pop.
 
-extra-source-files:
+extra-doc-files:
   CHANGELOG.md
   README.md
 
@@ -66,7 +64,10 @@ library
   exposed-modules:
     Deque
     Queue
+    Queue.Amortized
   hs-source-dirs: src
+  other-modules:
+    NonEmptyList
 
 test-suite test
   import: component

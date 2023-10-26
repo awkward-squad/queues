@@ -1,7 +1,6 @@
 module Main (main) where
 
 import Control.Applicative ((<|>))
-import Data.Coerce (coerce)
 import Data.List qualified as List
 import Data.Word
 import Deque (Deque)
@@ -12,6 +11,7 @@ import Hedgehog.Main
 import Hedgehog.Range qualified as Range
 import Queue (Queue)
 import Queue qualified
+import Queue.Amortized qualified
 
 main :: IO ()
 main = do
@@ -19,45 +19,57 @@ main = do
 
 tests :: [(PropertyName, PropertyT IO ())]
 tests =
-  [ ( "queue: toList . fromList = id",
+  [ ( "real-time queue: toList . fromList = id",
       do
         list <- forAll generateList
         Queue.toList (Queue.fromList list) === list
     ),
-    ( "queue: push + pop",
+    ( "real-time queue: push + pop",
       do
         (queue, x) <- forAll ((,) <$> generateQueue <*> generateWord8)
         queueLast (Queue.push x queue) === Just x
     ),
-    ( "queue: pushFront + pop",
+    ( "real-time queue: pushFront + pop",
       do
         (queue, x) <- forAll ((,) <$> generateQueue <*> generateWord8)
-        let cast = coerce :: Maybe (Word8, Queue Word8) -> Maybe (Word8, QueueWithEq Word8)
-        cast (Queue.pop (Queue.pushFront x queue)) === cast (Just (x, queue))
+        Queue.pop (Queue.pushFront x queue) === Just (x, queue)
     ),
-    ( "deque: toList . fromList = id",
+    ( "amortized queue: toList . fromList = id",
+      do
+        list <- forAll generateList
+        Queue.Amortized.toList (Queue.Amortized.fromList list) === list
+    ),
+    ( "amortized queue: push + pop",
+      do
+        (queue, x) <- forAll ((,) <$> generateAmortizedQueue <*> generateWord8)
+        amortizedQueueLast (Queue.Amortized.push x queue) === Just x
+    ),
+    ( "amortized queue: pushFront + pop",
+      do
+        (queue, x) <- forAll ((,) <$> generateAmortizedQueue <*> generateWord8)
+        Queue.Amortized.pop (Queue.Amortized.pushFront x queue) === Just (x, queue)
+    ),
+    ( "real-time deque: toList . fromList = id",
       do
         list <- forAll generateList
         Deque.toList (Deque.fromList list) === list
     ),
-    ( "deque: push + pop",
+    ( "real-time deque: push + pop",
       do
         (deque, x) <- forAll ((,) <$> generateDeque <*> generateWord8)
         dequeSlowLast (Deque.push x deque) === Just x
     ),
-    ( "deque: push + popBack",
+    ( "real-time deque: push + popBack",
       do
         (deque, x) <- forAll ((,) <$> generateDeque <*> generateWord8)
-        let cast = coerce :: Maybe (Deque Word8, Word8) -> Maybe (DequeWithEq Word8, Word8)
-        cast (Deque.popBack (Deque.push x deque)) === cast (Just (deque, x))
+        Deque.popBack (Deque.push x deque) === Just (deque, x)
     ),
-    ( "deque: pushFront + pop",
+    ( "real-time deque: pushFront + pop",
       do
         (deque, x) <- forAll ((,) <$> generateDeque <*> generateWord8)
-        let cast = coerce :: Maybe (Word8, Deque Word8) -> Maybe (Word8, DequeWithEq Word8)
-        cast (Deque.pop (Deque.pushFront x deque)) === cast (Just (x, deque))
+        Deque.pop (Deque.pushFront x deque) === Just (x, deque)
     ),
-    ( "deque: pushFront + popBack",
+    ( "real-time deque: pushFront + popBack",
       do
         (deque, x) <- forAll ((,) <$> generateDeque <*> generateWord8)
         dequeSlowHead (Deque.pushFront x deque) === Just x
@@ -66,14 +78,6 @@ tests =
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Supplemental API
-
-newtype QueueWithEq a = QueueWithEq (Queue a)
-  deriving newtype (Show)
-
-instance (Eq a) => Eq (QueueWithEq a) where
-  QueueWithEq Queue.Empty == QueueWithEq Queue.Empty = True
-  QueueWithEq (Queue.Front x xs) == QueueWithEq (Queue.Front y ys) | x == y = QueueWithEq xs == QueueWithEq ys
-  _ == _ = False
 
 -- O(n). Get the last element of a queue.
 queueLast :: Queue a -> Maybe a
@@ -85,13 +89,15 @@ queueLast =
       Queue.Empty -> acc
       Queue.Front x xs -> go (Just x <|> acc) xs
 
-newtype DequeWithEq a = DequeWithEq (Deque a)
-  deriving newtype (Show)
-
-instance (Eq a) => Eq (DequeWithEq a) where
-  DequeWithEq Deque.Empty == DequeWithEq Deque.Empty = True
-  DequeWithEq (Deque.Front x xs) == DequeWithEq (Deque.Front y ys) | x == y = DequeWithEq xs == DequeWithEq ys
-  _ == _ = False
+-- O(n). Get the last element of a queue.
+amortizedQueueLast :: Queue.Amortized.Queue a -> Maybe a
+amortizedQueueLast =
+  go Nothing
+  where
+    go :: Maybe a -> Queue.Amortized.Queue a -> Maybe a
+    go acc = \case
+      Queue.Amortized.Empty -> acc
+      Queue.Amortized.Front x xs -> go (Just x <|> acc) xs
 
 -- O(n). Get the first element of a deque by popping from the back.
 dequeSlowHead :: Deque a -> Maybe a
@@ -127,6 +133,14 @@ generateQueue = do
     applyQueueAction queue = \case
       QueueActionPush x -> Queue.push x queue
       QueueActionPop -> maybe queue snd (Queue.pop queue)
+
+generateAmortizedQueue :: Gen (Queue.Amortized.Queue Word8)
+generateAmortizedQueue = do
+  List.foldl' applyQueueAction Queue.Amortized.empty <$> generateQueueActions
+  where
+    applyQueueAction queue = \case
+      QueueActionPush x -> Queue.Amortized.push x queue
+      QueueActionPop -> maybe queue snd (Queue.Amortized.pop queue)
 
 data QueueAction
   = QueueActionPush !Word8

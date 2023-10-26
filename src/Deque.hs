@@ -49,6 +49,10 @@ data Deque a
       {-# UNPACK #-} !Int
       Schedule
 
+instance (Eq a) => Eq (Deque a) where
+  xs == ys =
+    length xs == length ys && toList xs == toList ys
+
 instance Monoid (Deque a) where
   mempty = empty
   mappend = (<>)
@@ -83,8 +87,8 @@ c :: Int
 c = 3
 
 -- Deque smart constructor.
-deque :: [a] -> Int -> [Any] -> [a] -> Int -> [Any] -> Deque a
-deque xs xlen xc ys ylen yc
+makeDeque :: [a] -> Int -> [Any] -> [a] -> Int -> [Any] -> Deque a
+makeDeque xs xlen xc ys ylen yc
   | xlen > (c * ylen + 1) =
       let xs1 = take xlen1 xs
           ys1 = rotate1 xlen1 ys xs
@@ -114,26 +118,26 @@ empty =
 -- | \(\mathcal{O}(1)\). Push an element onto the back of a deque, to be popped last.
 push :: a -> Deque a -> Deque a
 push y (Deque xs xlen xc ys ylen yc) =
-  deque xs xlen (execute1 xc) (y : ys) (ylen + 1) (execute1 yc)
+  makeDeque xs xlen (execute1 xc) (y : ys) (ylen + 1) (execute1 yc)
 
 -- | \(\mathcal{O}(1)\). Push an element onto the front of a deque, to be popped next.
 pushFront :: a -> Deque a -> Deque a
 pushFront x (Deque xs xlen xc ys ylen yc) =
-  deque (x : xs) (xlen + 1) (execute1 xc) ys ylen (execute1 yc)
+  makeDeque (x : xs) (xlen + 1) (execute1 xc) ys ylen (execute1 yc)
 
 -- | \(\mathcal{O}(1)\). Pop an element off of the front of a deque.
 pop :: Deque a -> Maybe (a, Deque a)
 pop = \case
   Deque [] _ _ [] _ _ -> Nothing
   Deque [] _ _ (y : _) _ _ -> Just (y, empty)
-  Deque (x : xs) xlen xc ys ylen yc -> Just (x, deque xs (xlen - 1) (execute2 xc) ys ylen (execute2 yc))
+  Deque (x : xs) xlen xc ys ylen yc -> Just (x, makeDeque xs (xlen - 1) (execute2 xc) ys ylen (execute2 yc))
 
 -- | \(\mathcal{O}(1)\). Pop an element off of the back of a deque.
 popBack :: Deque a -> Maybe (Deque a, a)
 popBack = \case
   Deque [] _ _ [] _ _ -> Nothing
   Deque (x : _) _ _ [] _ _ -> Just (empty, x)
-  Deque xs xlen xc (y : ys) ylen yc -> Just (deque xs xlen (execute2 xc) ys (ylen - 1) (execute2 yc), y)
+  Deque xs xlen xc (y : ys) ylen yc -> Just (makeDeque xs xlen (execute2 xc) ys (ylen - 1) (execute2 yc), y)
 
 -- | \(\mathcal{O}(1)\). Is a deque empty?
 isEmpty :: Deque a -> Bool
