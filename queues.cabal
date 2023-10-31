@@ -30,6 +30,7 @@ source-repository head
 
 common component
   default-extensions:
+    ConstraintKinds
     DataKinds
     DeriveFunctor
     DerivingStrategies
@@ -40,6 +41,7 @@ common component
     PatternSynonyms
     RankNTypes
     ScopedTypeVariables
+    StandaloneKindSignatures
     TypeOperators
     ViewPatterns
   default-language: Haskell2010

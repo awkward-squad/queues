@@ -38,6 +38,7 @@ where
 
 import Data.Bits (unsafeShiftR)
 import Data.Foldable qualified as Foldable
+import Data.Kind (Constraint)
 import Data.List qualified as List
 import GHC.Exts (Any)
 import GHC.TypeError qualified as TypeError
@@ -67,14 +68,14 @@ instance Foldable Deque where
   null = isEmpty
   toList = toList
 
-instance
-  ( TypeError.TypeError
-      ( 'TypeError.Text "The real-time deque does not admit a Functor instance."
-          'TypeError.:$$: 'TypeError.Text "Perhaps you would like to use the amortized deque instead?"
-      )
-  ) =>
-  Functor Deque
-  where
+type NoFunctorInstance :: Constraint
+type NoFunctorInstance =
+  TypeError.TypeError
+    ( 'TypeError.Text "The real-time deque does not admit a Functor instance."
+        'TypeError.:$$: 'TypeError.Text "Perhaps you would like to use the amortized deque instead?"
+    )
+
+instance (NoFunctorInstance) => Functor Deque where
   fmap = undefined
 
 instance Monoid (Deque a) where

@@ -48,6 +48,7 @@ module Queue
 where
 
 import Data.Foldable qualified as Foldable
+import Data.Kind (Constraint)
 import GHC.Exts (Any)
 import GHC.TypeError qualified as TypeError
 import Queue.Internal.Prelude
@@ -77,14 +78,14 @@ instance Foldable Queue where
   null = isEmpty
   toList = toList
 
-instance
-  ( TypeError.TypeError
-      ( 'TypeError.Text "The real-time queue does not admit a Functor instance."
-          'TypeError.:$$: 'TypeError.Text "Perhaps you would like to use the amortized queue instead?"
-      )
-  ) =>
-  Functor Queue
-  where
+type NoFunctorInstance :: Constraint
+type NoFunctorInstance =
+  TypeError.TypeError
+    ( 'TypeError.Text "The real-time queue does not admit a Functor instance."
+        'TypeError.:$$: 'TypeError.Text "Perhaps you would like to use the amortized queue instead?"
+    )
+
+instance (NoFunctorInstance) => Functor Queue where
   fmap = undefined
 
 instance Monoid (Queue a) where
