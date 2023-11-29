@@ -54,6 +54,15 @@ import Data.Traversable qualified as Traversable
 import Queue.Internal.Prelude
 import Prelude hiding (foldMap, length, map, span, traverse)
 
+-- Implementation note: there are a number of similar options presented in Okasaki's works:
+--
+--   1. Banker's queue
+--   2. Bootstrapped banker's queue
+--   3. Not-exactly-bootstrapped banker's queue that just uses lists of rotations instead of a queue of rotations
+--
+-- In various benchmarks I've put together, which should probably be included in this repo but aren't, (3) appears to be
+-- the fastest, so that's what we use.
+
 -- | A queue data structure with \(\mathcal{O}(1)\) amortized push and pop.
 data Queue a
   = Queue
