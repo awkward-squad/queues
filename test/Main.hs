@@ -6,8 +6,6 @@ import Data.Function ((&))
 import Data.List qualified as List
 import Data.Sequence qualified as Seq
 import Data.Word (Word8)
-import Deque (Deque)
-import Deque qualified
 import Hedgehog
   ( Gen,
     Group (Group),
@@ -24,7 +22,10 @@ import Hedgehog.Main qualified as Hedgehog (defaultMain)
 import Hedgehog.Range qualified as Range
 import Queue (Queue)
 import Queue qualified
-import Queue.Amortized qualified
+import RealTimeDeque (RealTimeDeque)
+import RealTimeDeque qualified
+import RealTimeQueue (RealTimeQueue)
+import RealTimeQueue qualified
 
 main :: IO ()
 main = do
@@ -37,25 +38,25 @@ main = do
 
 tests :: [(PropertyName, PropertyT IO ())]
 tests =
-  [ ( "[queue amortized-queue deque] `toList . fromList = id`",
+  [ ( "toList . fromList = id",
       do
         list <- forAll generateList
         (Queue.toList . Queue.fromList) list === list
-        (Queue.Amortized.toList . Queue.Amortized.fromList) list === list
-        (Deque.toList . Deque.fromList) list === list
+        (RealTimeQueue.toList . RealTimeQueue.fromList) list === list
+        (RealTimeDeque.toList . RealTimeDeque.fromList) list === list
     ),
-    ( "[queue amortized-queue      ] `enqueue/enqueueFront/dequeue state machine tests`",
+    ( "enqueue/enqueueFront/dequeue state machine tests",
       do
         actions <- forAll (generateQueueActions 1000)
         let expected = seqApplyQueueActions actions
-        queueApplyActions actions === expected
         amortizedQueueApplyActions actions === expected
+        realTimeQueueApplyActions actions === expected
     ),
-    ( "[                      deque] `enqueue/enqueueFront/dequeue/dequeueBack state machine tests`",
+    ( "`enqueue/enqueueFront/dequeue/dequeueBack state machine tests`",
       do
         actions <- forAll (generateDequeActions 1000)
         let expected = seqApplyDequeActions actions
-        dequeApplyActions actions === expected
+        realTimeDequeApplyActions actions === expected
     )
   ]
 
@@ -83,6 +84,32 @@ generateQueueActions n =
         ]
     )
 
+amortizedQueueApplyActions :: [QueueAction] -> ([Maybe Word8], [Word8])
+amortizedQueueApplyActions =
+  second Queue.toList . List.foldl' apply ([], Queue.empty)
+  where
+    apply :: ([Maybe Word8], Queue Word8) -> QueueAction -> ([Maybe Word8], Queue Word8)
+    apply (dequeues, queue) = \case
+      QueueActionEnqueue x -> (dequeues, Queue.enqueue x queue)
+      QueueActionEnqueueFront x -> (dequeues, Queue.enqueueFront x queue)
+      QueueActionDequeue ->
+        case queue of
+          Queue.Empty -> (Nothing : dequeues, queue)
+          Queue.Front x queue1 -> (Just x : dequeues, queue1)
+
+realTimeQueueApplyActions :: [QueueAction] -> ([Maybe Word8], [Word8])
+realTimeQueueApplyActions =
+  second RealTimeQueue.toList . List.foldl' apply ([], RealTimeQueue.empty)
+  where
+    apply :: ([Maybe Word8], RealTimeQueue Word8) -> QueueAction -> ([Maybe Word8], RealTimeQueue Word8)
+    apply (dequeues, queue) = \case
+      QueueActionEnqueue x -> (dequeues, RealTimeQueue.enqueue x queue)
+      QueueActionEnqueueFront x -> (dequeues, RealTimeQueue.enqueueFront x queue)
+      QueueActionDequeue ->
+        case queue of
+          RealTimeQueue.Empty -> (Nothing : dequeues, queue)
+          RealTimeQueue.Front x queue1 -> (Just x : dequeues, queue1)
+
 seqApplyQueueActions :: [QueueAction] -> ([Maybe Word8], [Word8])
 seqApplyQueueActions =
   second Foldable.toList . List.foldl' apply ([], Seq.empty)
@@ -95,32 +122,6 @@ seqApplyQueueActions =
         case queue of
           Seq.Empty -> (Nothing : dequeues, queue)
           x Seq.:<| queue1 -> (Just x : dequeues, queue1)
-
-queueApplyActions :: [QueueAction] -> ([Maybe Word8], [Word8])
-queueApplyActions =
-  second Queue.toList . List.foldl' apply ([], Queue.empty)
-  where
-    apply :: ([Maybe Word8], Queue Word8) -> QueueAction -> ([Maybe Word8], Queue Word8)
-    apply (dequeues, queue) = \case
-      QueueActionEnqueue x -> (dequeues, Queue.enqueue x queue)
-      QueueActionEnqueueFront x -> (dequeues, Queue.enqueueFront x queue)
-      QueueActionDequeue ->
-        case queue of
-          Queue.Empty -> (Nothing : dequeues, queue)
-          Queue.Front x queue1 -> (Just x : dequeues, queue1)
-
-amortizedQueueApplyActions :: [QueueAction] -> ([Maybe Word8], [Word8])
-amortizedQueueApplyActions =
-  second Queue.Amortized.toList . List.foldl' apply ([], Queue.Amortized.empty)
-  where
-    apply :: ([Maybe Word8], Queue.Amortized.Queue Word8) -> QueueAction -> ([Maybe Word8], Queue.Amortized.Queue Word8)
-    apply (dequeues, queue) = \case
-      QueueActionEnqueue x -> (dequeues, Queue.Amortized.enqueue x queue)
-      QueueActionEnqueueFront x -> (dequeues, Queue.Amortized.enqueueFront x queue)
-      QueueActionDequeue ->
-        case queue of
-          Queue.Amortized.Empty -> (Nothing : dequeues, queue)
-          Queue.Amortized.Front x queue1 -> (Just x : dequeues, queue1)
 
 data DequeAction
   = DequeActionEnqueue !Word8
@@ -141,6 +142,23 @@ generateDequeActions n =
         ]
     )
 
+realTimeDequeApplyActions :: [DequeAction] -> ([Maybe Word8], [Word8])
+realTimeDequeApplyActions =
+  second RealTimeDeque.toList . List.foldl' apply ([], RealTimeDeque.empty)
+  where
+    apply :: ([Maybe Word8], RealTimeDeque Word8) -> DequeAction -> ([Maybe Word8], RealTimeDeque Word8)
+    apply (dequeues, queue) = \case
+      DequeActionEnqueue x -> (dequeues, RealTimeDeque.enqueue x queue)
+      DequeActionEnqueueFront x -> (dequeues, RealTimeDeque.enqueueFront x queue)
+      DequeActionDequeue ->
+        case queue of
+          RealTimeDeque.Empty -> (Nothing : dequeues, queue)
+          RealTimeDeque.Front x queue1 -> (Just x : dequeues, queue1)
+      DequeActionDequeueBack ->
+        case queue of
+          RealTimeDeque.Empty -> (Nothing : dequeues, queue)
+          RealTimeDeque.Back queue1 x -> (Just x : dequeues, queue1)
+
 seqApplyDequeActions :: [DequeAction] -> ([Maybe Word8], [Word8])
 seqApplyDequeActions =
   second Foldable.toList . List.foldl' apply ([], Seq.empty)
@@ -157,23 +175,6 @@ seqApplyDequeActions =
         case queue of
           Seq.Empty -> (Nothing : dequeues, queue)
           queue1 Seq.:|> x -> (Just x : dequeues, queue1)
-
-dequeApplyActions :: [DequeAction] -> ([Maybe Word8], [Word8])
-dequeApplyActions =
-  second Deque.toList . List.foldl' apply ([], Deque.empty)
-  where
-    apply :: ([Maybe Word8], Deque Word8) -> DequeAction -> ([Maybe Word8], Deque Word8)
-    apply (dequeues, queue) = \case
-      DequeActionEnqueue x -> (dequeues, Deque.enqueue x queue)
-      DequeActionEnqueueFront x -> (dequeues, Deque.enqueueFront x queue)
-      DequeActionDequeue ->
-        case queue of
-          Deque.Empty -> (Nothing : dequeues, queue)
-          Deque.Front x queue1 -> (Just x : dequeues, queue1)
-      DequeActionDequeueBack ->
-        case queue of
-          Deque.Empty -> (Nothing : dequeues, queue)
-          Deque.Back queue1 x -> (Just x : dequeues, queue1)
 
 generateWord8 :: Gen Word8
 generateWord8 =

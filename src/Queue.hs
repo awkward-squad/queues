@@ -1,10 +1,5 @@
-{-# LANGUAGE InstanceSigs #-}
--- It seems this is only needed on GHC <= 9.4
-{-# LANGUAGE UndecidableInstances #-}
-
--- | A queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue, as described in
+-- | A queue data structure with \(\mathcal{O}(1)\) amortized enqueue and dequeue, as described in
 --
---   * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
 --
 -- A queue can be thought to have a "back" where new elements are enqueued, and a "front" where elements are dequeued in
@@ -18,11 +13,6 @@
 --
 --   * List conversion functions associate the head of a list with the front of a queue.
 --   * The append operator @xs <> ys@ creates a queue with @xs@ in front of @ys@.
---
--- This module is intended to be imported qualified:
---
--- > import Queue (Queue)
--- > import Queue qualified
 module Queue
   ( -- * Queue
     Queue (Empty, Front),
@@ -41,6 +31,11 @@ module Queue
 
     -- * Queries
     isEmpty,
+    length,
+
+    -- * Transformations
+    map,
+    traverse,
 
     -- * List conversions
     fromList,
@@ -49,68 +44,66 @@ module Queue
 where
 
 import Data.Foldable qualified as Foldable
-import Data.Kind (Constraint)
-import GHC.Exts (Any)
-import GHC.TypeError qualified as TypeError
-import Queue.Internal.Prelude (NonEmptyList, listFoldMapBackwards, pattern NonEmptyList)
-import Unsafe.Coerce (unsafeCoerce)
-import Prelude hiding (foldMap, length, span)
+import Data.List qualified as List
+import Data.Traversable qualified as Traversable
+import Queue.Internal.Prelude
+import Prelude hiding (foldMap, length, map, span, traverse)
 
--- | A queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue.
+-- Implementation note: there are a number of similar options presented in Okasaki's works:
+--
+--   1. Banker's queue
+--   2. Bootstrapped banker's queue
+--   3. Not-exactly-bootstrapped banker's queue that just uses lists of rotations instead of a queue of rotations
+--
+-- In various benchmarks I've put together, which should probably be included in this repo but aren't, (3) appears to be
+-- the fastest, so that's what we use.
+
+-- | A queue data structure with \(\mathcal{O}(1)\) amortized enqueue and dequeue.
 data Queue a
   = Queue
-      -- The front of the queue.
-      -- Invariant: length >= length of back
+      -- The head of the queue, e.g. [1,2,3]
+      -- Invariant: empty iff queue is empty
       [a]
-      -- The back of the queue, in reverse order.
+      -- A list of rotations, e.g. [ reverse [6,5,4], reverse [12,11,10,9,8,7] ]
+      [NonEmptyList a]
+      -- Length of head + all elems in queue of rotations
+      {-# UNPACK #-} !Int
+      -- The reversed tail of the queue, e.g. [50,49,48]
+      -- Invariant: not longer than head + all elems in queue of rotations
       [a]
-      -- Some tail of the front of the queue.
-      -- Invariant: length = length of front - length of back
-      Schedule
+      -- Length of tail
+      {-# UNPACK #-} !Int
+  deriving stock (Functor)
 
 instance (Eq a) => Eq (Queue a) where
-  (==) :: Queue a -> Queue a -> Bool
   xs == ys =
-    toList xs == toList ys
+    length xs == length ys && toList xs == toList ys
 
 instance Foldable Queue where
-  foldMap :: (Monoid m) => (a -> m) -> Queue a -> m
-  foldMap f (Queue xs ys _) =
-    Foldable.foldMap f xs <> listFoldMapBackwards f ys
-
-  elem :: (Eq a) => a -> Queue a -> Bool
-  elem x (Queue xs ys _) =
-    elem x xs || elem x ys
-
-  null :: Queue a -> Bool
-  null =
-    isEmpty
-
-  toList :: Queue a -> [a]
-  toList =
-    toList
-
-type NoFunctorInstance :: Constraint
-type NoFunctorInstance =
-  TypeError.TypeError
-    ( 'TypeError.Text "The real-time queue does not admit a Functor instance."
-        'TypeError.:$$: 'TypeError.Text "Perhaps you would like to use the amortized queue instead?"
-    )
-
-instance (NoFunctorInstance) => Functor Queue where
-  fmap = undefined
+  foldMap f (Queue xs ms _ ys _) =
+    Foldable.foldMap f xs <> Foldable.foldMap (Foldable.foldMap f) ms <> listFoldMapBackwards f ys
+  elem x (Queue xs ms _ ys _) = elem x xs || any (elem x) ms || elem x ys
+  length = length
+  null = isEmpty
+  toList = toList
 
 instance Monoid (Queue a) where
   mempty = empty
   mappend = (<>)
 
--- | \(\mathcal{O}(n)\), where \(n\) is the size of the first argument.
+-- | \(\mathcal{O}(n)\), where \(n\) is the size of the smaller argument.
 instance Semigroup (Queue a) where
-  Empty <> ys = ys
-  Front x xs <> ys = enqueue x (xs <> ys)
+  xs <> ys
+    -- Either enqueue xs onto the front of ys, or ys onto the back of xs, depending on which one would be fewer
+    -- enqueues.
+    | length xs < length ys = prepend xs ys
+    | otherwise = append xs ys
 
 instance (Show a) => Show (Queue a) where
   show = show . toList
+
+instance Traversable Queue where
+  traverse = traverse
 
 -- | An empty queue.
 pattern Empty :: Queue a
@@ -123,49 +116,43 @@ pattern Front x xs <- (dequeue -> Just (x, xs))
 {-# COMPLETE Empty, Front #-}
 
 -- Queue smart constructor.
---
--- `queue xs ys zs` is always called when |zs| = |xs| - |ys| + 1 (i.e. just after a enqueue or dequeue)
-makeQueue :: [a] -> [a] -> Schedule -> Queue a
-makeQueue xs ys = \case
-  NoMoreWorkToDo -> let xs1 = rotate ys [] xs in Queue xs1 [] (schedule xs1)
-  DidWork zs -> Queue xs ys zs
+makeQueue :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> Queue a
+makeQueue [] [] _ ys ylen = Queue ys [] ylen [] 0
+makeQueue [] (m : ms) xlen ys ylen = makeQueue1 m ms xlen ys ylen
+makeQueue xs ms xlen ys ylen = makeQueue1 xs ms xlen ys ylen
 
--- rotate ys zs xs = xs ++ reverse ys ++ zs
--- Precondition: |ys| = |xs| + 1
-rotate :: NonEmptyList a -> [a] -> [a] -> [a]
-rotate (NonEmptyList y ys) zs = \case
-  [] -> y : zs
-  x : xs -> x : rotate ys (y : zs) xs
+-- Queue smart constructor.
+makeQueue1 :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> Queue a
+makeQueue1 xs ms xlen ys ylen
+  | ylen <= xlen = Queue xs ms xlen ys ylen
+  | otherwise = Queue xs (ms ++ [reverse ys]) (xlen + ylen) [] 0
 
 -- | An empty queue.
 empty :: Queue a
 empty =
-  Queue [] [] NoMoreWorkToDo
+  Queue [] [] 0 [] 0
 
 -- | A singleton queue.
 singleton :: a -> Queue a
 singleton x =
-  Queue xs [] (schedule xs)
-  where
-    xs = [x]
+  Queue [x] [] 1 [] 0
 
--- | \(\mathcal{O}(1)\). Enqueue an element at the back of a queue, to be dequeued last.
+-- | \(\mathcal{O}(1)\) amortized. Enqueue an element at the back of a queue, to be dequeued last.
 enqueue :: a -> Queue a -> Queue a
-enqueue y (Queue xs ys zs) =
-  makeQueue xs (y : ys) zs
+enqueue y (Queue xs ms xlen ys ylen) =
+  makeQueue xs ms xlen (y : ys) (ylen + 1)
 
--- | \(\mathcal{O}(1)\). Dequeue an element from the front of a queue.
+-- | \(\mathcal{O}(1)\) amortized. Dequeue an element from the front of a queue.
 dequeue :: Queue a -> Maybe (a, Queue a)
 dequeue = \case
-  Queue [] _ _ -> Nothing
-  Queue (x : xs) ys zs -> Just (x, makeQueue xs ys zs)
+  Queue [] _ _ _ _ -> Nothing
+  Queue (x : xs) ms xlen ys ylen -> Just (x, makeQueue xs ms (xlen - 1) ys ylen)
 
--- | \(\mathcal{O}(1)\). Enqueue an element at the front of a queue, to be dequeued next.
+-- | \(\mathcal{O}(1)\) amortized. Enqueue an element at the front of a queue, to be dequeued next.
 enqueueFront :: a -> Queue a -> Queue a
-enqueueFront x (Queue xs ys zs) =
+enqueueFront x (Queue xs ms xlen ys ylen) =
   -- smart constructor not needed here
-  -- we also add useless work to the schedule to maintain the convenient rotate-on-empty-schedule trigger
-  Queue (x : xs) ys (delay x zs)
+  Queue (x : xs) ms (xlen + 1) ys ylen
 
 -- | Dequeue elements from the front of a queue while a predicate is satisfied.
 dequeueWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
@@ -185,40 +172,54 @@ span p =
 
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: Queue a -> Bool
-isEmpty = \case
-  Queue [] _ _ -> True
-  _ -> False
+isEmpty (Queue _ _ xlen _ _) =
+  xlen == 0
 
--- | \(\mathcal{O}(1)\). Construct a queue from a list, where the head of the list corresponds to the front of the
+-- | \(\mathcal{O}(1)\). How many elements are in a deque?
+length :: Queue a -> Int
+length (Queue _ _ xlen _ ylen) =
+  xlen + ylen
+
+-- @append xs ys@ enqueues @ys@ at the back of @ys@.
+append :: Queue a -> Queue a -> Queue a
+append xs Empty = xs
+append xs (Front y ys) = append (enqueue y xs) ys
+
+-- @prepend xs ys@ enqueues @xs@ at the front of @ys@.
+prepend :: Queue a -> Queue a -> Queue a
+prepend Empty ys = ys
+prepend (Front x xs) ys = enqueueFront x (prepend xs ys)
+
+-- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
+map :: (a -> b) -> Queue a -> Queue b
+map =
+  fmap
+
+-- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
+traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
+traverse f (Queue xs ms xlen ys ylen) =
+  Queue
+    <$> Traversable.traverse f xs
+    <*> Traversable.traverse (Traversable.traverse f) ms
+    <*> pure xlen
+    <*> backwards ys
+    <*> pure ylen
+  where
+    backwards =
+      go
+      where
+        go = \case
+          [] -> pure []
+          z : zs -> flip (:) <$> go zs <*> f z
+
+-- | \(\mathcal{O}(n)\). Construct a queue from a list, where the head of the list corresponds to the front of the
 -- queue.
 fromList :: [a] -> Queue a
 fromList xs =
-  Queue xs [] (schedule xs)
+  Queue xs [] (List.length xs) [] 0
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue, where the head of the list corresponds to the front of the
 -- queue.
 toList :: Queue a -> [a]
-toList (Queue xs ys _) =
-  xs ++ reverse ys
-
-------------------------------------------------------------------------------------------------------------------------
--- Schedule utils
-
-type Schedule =
-  [Any]
-
-pattern NoMoreWorkToDo :: Schedule
-pattern NoMoreWorkToDo = []
-
-pattern DidWork :: Schedule -> Schedule
-pattern DidWork xs <- _ : xs
-
-{-# COMPLETE NoMoreWorkToDo, DidWork #-}
-
-schedule :: [a] -> Schedule
-schedule =
-  unsafeCoerce
-
-delay :: a -> Schedule -> Schedule
-delay x =
-  (unsafeCoerce x :)
+toList (Queue xs ms _ ys _) =
+  xs ++ concat ms ++ reverse ys
