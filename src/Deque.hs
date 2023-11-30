@@ -1,7 +1,7 @@
 -- It seems this is only needed on GHC <= 9.4
 {-# LANGUAGE UndecidableInstances #-}
 
--- | A double-ended queue data structure with \(\mathcal{O}(1)\) worst-case push and pop, as described in
+-- | A double-ended queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue, as described in
 --
 --   * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
@@ -18,10 +18,10 @@ module Deque
     empty,
 
     -- * Basic interface
-    push,
-    pushFront,
-    pop,
-    popBack,
+    enqueue,
+    enqueueFront,
+    dequeue,
+    dequeueBack,
 
     -- * Queries
     isEmpty,
@@ -46,7 +46,7 @@ import Queue.Internal.Prelude
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (foldMap, length, reverse)
 
--- | A double-ended queue data structure with \(\mathcal{O}(1)\) worst-case push and pop.
+-- | A double-ended queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue.
 data Deque a
   = Deque
       [a]
@@ -85,7 +85,7 @@ instance Monoid (Deque a) where
 -- | \(\mathcal{O}(n)\), where \(n\) is the size of the smaller argument.
 instance Semigroup (Deque a) where
   xs <> ys
-    -- Either push xs onto the front of ys, or ys onto the back of xs, depending on which one would be fewer pushes.
+    -- Either enqueue xs at the front of ys, or ys onto the back of xs, depending on which one would be fewer enqueues.
     | length xs < length ys = prepend xs ys
     | otherwise = append xs ys
 
@@ -94,15 +94,15 @@ instance (Show a) => Show (Deque a) where
 
 -- | An empty deque.
 pattern Empty :: Deque a
-pattern Empty <- (pop -> Nothing)
+pattern Empty <- (dequeue -> Nothing)
 
 -- | The front of a deque, and the rest of it.
 pattern Front :: a -> Deque a -> Deque a
-pattern Front x xs <- (pop -> Just (x, xs))
+pattern Front x xs <- (dequeue -> Just (x, xs))
 
 -- | The back of a deque, and the rest of it.
 pattern Back :: Deque a -> a -> Deque a
-pattern Back xs x <- (popBack -> Just (xs, x))
+pattern Back xs x <- (dequeueBack -> Just (xs, x))
 
 {-# COMPLETE Empty, Front #-}
 
@@ -140,26 +140,26 @@ empty :: Deque a
 empty =
   Deque [] 0 [] [] 0 []
 
--- | \(\mathcal{O}(1)\). Push an element onto the back of a deque, to be popped last.
-push :: a -> Deque a -> Deque a
-push y (Deque xs xlen xc ys ylen yc) =
+-- | \(\mathcal{O}(1)\). Enqueue an element at the back of a deque, to be dequeued last.
+enqueue :: a -> Deque a -> Deque a
+enqueue y (Deque xs xlen xc ys ylen yc) =
   makeDeque xs xlen (execute1 xc) (y : ys) (ylen + 1) (execute1 yc)
 
--- | \(\mathcal{O}(1)\). Push an element onto the front of a deque, to be popped next.
-pushFront :: a -> Deque a -> Deque a
-pushFront x (Deque xs xlen xc ys ylen yc) =
+-- | \(\mathcal{O}(1)\). Enqueue an element at the front of a deque, to be dequeued next.
+enqueueFront :: a -> Deque a -> Deque a
+enqueueFront x (Deque xs xlen xc ys ylen yc) =
   makeDeque (x : xs) (xlen + 1) (execute1 xc) ys ylen (execute1 yc)
 
--- | \(\mathcal{O}(1)\). Pop an element off of the front of a deque.
-pop :: Deque a -> Maybe (a, Deque a)
-pop = \case
+-- | \(\mathcal{O}(1)\). Dequeue an element from the front of a deque.
+dequeue :: Deque a -> Maybe (a, Deque a)
+dequeue = \case
   Deque [] _ _ [] _ _ -> Nothing
   Deque [] _ _ (y : _) _ _ -> Just (y, empty)
   Deque (x : xs) xlen xc ys ylen yc -> Just (x, makeDeque xs (xlen - 1) (execute2 xc) ys ylen (execute2 yc))
 
--- | \(\mathcal{O}(1)\). Pop an element off of the back of a deque.
-popBack :: Deque a -> Maybe (Deque a, a)
-popBack = \case
+-- | \(\mathcal{O}(1)\). Dequeue an element from of the back of a deque.
+dequeueBack :: Deque a -> Maybe (Deque a, a)
+dequeueBack = \case
   Deque [] _ _ [] _ _ -> Nothing
   Deque (x : _) _ _ [] _ _ -> Just (empty, x)
   Deque xs xlen xc (y : ys) ylen yc -> Just (makeDeque xs xlen (execute2 xc) ys (ylen - 1) (execute2 yc), y)
@@ -179,21 +179,21 @@ reverse :: Deque a -> Deque a
 reverse (Deque xs xlen xc ys ylen yc) =
   Deque ys ylen yc xs xlen xc
 
--- O(ys). @append xs ys@ pushes @ys@ onto the back of @ys@.
+-- O(ys). @append xs ys@ enqueues @ys@ onto the back of @ys@.
 append :: Deque a -> Deque a -> Deque a
 append xs Empty = xs
-append xs (Front y ys) = append (push y xs) ys
+append xs (Front y ys) = append (enqueue y xs) ys
 
--- O(xs). @prepend xs ys@ pushes @xs@ onto the front of @ys@. O(xs).
+-- O(xs). @prepend xs ys@ enqueues @xs@ onto the front of @ys@. O(xs).
 prepend :: Deque a -> Deque a -> Deque a
 prepend Empty ys = ys
-prepend (Back xs x) ys = prepend xs (pushFront x ys)
+prepend (Back xs x) ys = prepend xs (enqueueFront x ys)
 
 -- | \(\mathcal{O}(n)\). Construct a deque from a list, where the head of the list corresponds to the front of the
 -- deque.
 fromList :: [a] -> Deque a
 fromList =
-  foldr pushFront empty
+  foldr enqueueFront empty
 
 -- | \(\mathcal{O}(n)\). Construct a list from a deque, where the head of the list corresponds to the front of the
 -- deque.

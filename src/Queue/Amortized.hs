@@ -1,12 +1,12 @@
--- | A queue data structure with \(\mathcal{O}(1)\) amortized push and pop, as described in
+-- | A queue data structure with \(\mathcal{O}(1)\) amortized enqueue and dequeue, as described in
 --
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
 --
--- A queue can be thought to have a "back" where new elements are pushed, and a "front" where elements are popped in the
--- order that they were pushed.
+-- A queue can be thought to have a "back" where new elements are enqueued, and a "front" where elements are dequeued in
+-- the order that they were enqueued.
 --
--- This queue also supports a "push to front" operation, because the underlying representation happens to trivially
--- support it. For a variant that also supports a "pop from back" operation, see "Data.Deque".
+-- This queue also supports a "enqueue at front" operation, because the underlying representation happens to trivially
+-- support it. For a variant that also supports a "dequeue from back" operation, see "Data.Deque".
 --
 -- In this implementation, it is more helpful to think of the "front" being on the /left/, because (though the decision
 -- is arbitrary) we are consistent throughout, where it matters:
@@ -27,12 +27,12 @@ module Queue.Amortized
     singleton,
 
     -- * Basic interface
-    push,
-    pop,
+    enqueue,
+    dequeue,
 
     -- ** Extended interface
-    pushFront,
-    popWhile,
+    enqueueFront,
+    dequeueWhile,
 
     -- * Queries
     isEmpty,
@@ -63,7 +63,7 @@ import Prelude hiding (foldMap, length, map, span, traverse)
 -- In various benchmarks I've put together, which should probably be included in this repo but aren't, (3) appears to be
 -- the fastest, so that's what we use.
 
--- | A queue data structure with \(\mathcal{O}(1)\) amortized push and pop.
+-- | A queue data structure with \(\mathcal{O}(1)\) amortized enqueue and dequeue.
 data Queue a
   = Queue
       -- The head of the queue, e.g. [1,2,3]
@@ -99,7 +99,8 @@ instance Monoid (Queue a) where
 -- | \(\mathcal{O}(n)\), where \(n\) is the size of the smaller argument.
 instance Semigroup (Queue a) where
   xs <> ys
-    -- Either push xs onto the front of ys, or ys onto the back of xs, depending on which one would be fewer pushes.
+    -- Either enqueue xs onto the front of ys, or ys onto the back of xs, depending on which one would be fewer
+    -- enqueues.
     | length xs < length ys = prepend xs ys
     | otherwise = append xs ys
 
@@ -111,11 +112,11 @@ instance Traversable Queue where
 
 -- | An empty queue.
 pattern Empty :: Queue a
-pattern Empty <- (pop -> Nothing)
+pattern Empty <- (dequeue -> Nothing)
 
 -- | The front of a queue, and the rest of it.
 pattern Front :: a -> Queue a -> Queue a
-pattern Front x xs <- (pop -> Just (x, xs))
+pattern Front x xs <- (dequeue -> Just (x, xs))
 
 {-# COMPLETE Empty, Front #-}
 
@@ -141,26 +142,26 @@ singleton :: a -> Queue a
 singleton x =
   Queue [x] [] 1 [] 0
 
--- | \(\mathcal{O}(1)\) amortized. Push an element onto the back of a queue, to be popped last.
-push :: a -> Queue a -> Queue a
-push y (Queue xs ms xlen ys ylen) =
+-- | \(\mathcal{O}(1)\) amortized. Enqueue an element at the back of a queue, to be dequeued last.
+enqueue :: a -> Queue a -> Queue a
+enqueue y (Queue xs ms xlen ys ylen) =
   makeQueue xs ms xlen (y : ys) (ylen + 1)
 
--- | \(\mathcal{O}(1)\) amortized. Pop an element off of the front of a queue.
-pop :: Queue a -> Maybe (a, Queue a)
-pop = \case
+-- | \(\mathcal{O}(1)\) amortized. Dequeue an element from the front of a queue.
+dequeue :: Queue a -> Maybe (a, Queue a)
+dequeue = \case
   Queue [] _ _ _ _ -> Nothing
   Queue (x : xs) ms xlen ys ylen -> Just (x, makeQueue xs ms (xlen - 1) ys ylen)
 
--- | \(\mathcal{O}(1)\) amortized. Push an element onto the front of a queue, to be popped next.
-pushFront :: a -> Queue a -> Queue a
-pushFront x (Queue xs ms xlen ys ylen) =
+-- | \(\mathcal{O}(1)\) amortized. Enqueue an element at the front of a queue, to be dequeued next.
+enqueueFront :: a -> Queue a -> Queue a
+enqueueFront x (Queue xs ms xlen ys ylen) =
   -- smart constructor not needed here
   Queue (x : xs) ms (xlen + 1) ys ylen
 
--- | Pop elements off of the front of a queue while a predicate is satisfied.
-popWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
-popWhile p queue0 =
+-- | Dequeue elements from the front of a queue while a predicate is satisfied.
+dequeueWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
+dequeueWhile p queue0 =
   case span p queue0 of
     (queue1, queue2) -> (toList queue1, queue2)
 
@@ -171,8 +172,8 @@ span p =
     go acc = \case
       Empty -> (acc, empty)
       Front x xs
-        | p x -> go (push x acc) xs
-        | otherwise -> (acc, pushFront x xs)
+        | p x -> go (enqueue x acc) xs
+        | otherwise -> (acc, enqueueFront x xs)
 
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: Queue a -> Bool
@@ -184,15 +185,15 @@ length :: Queue a -> Int
 length (Queue _ _ xlen _ ylen) =
   xlen + ylen
 
--- @append xs ys@ pushes @ys@ onto the back of @ys@.
+-- @append xs ys@ enqueues @ys@ at the back of @ys@.
 append :: Queue a -> Queue a -> Queue a
 append xs Empty = xs
-append xs (Front y ys) = append (push y xs) ys
+append xs (Front y ys) = append (enqueue y xs) ys
 
--- @prepend xs ys@ pushes @xs@ onto the front of @ys@.
+-- @prepend xs ys@ enqueues @xs@ at the front of @ys@.
 prepend :: Queue a -> Queue a -> Queue a
 prepend Empty ys = ys
-prepend (Front x xs) ys = pushFront x (prepend xs ys)
+prepend (Front x xs) ys = enqueueFront x (prepend xs ys)
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
 map :: (a -> b) -> Queue a -> Queue b

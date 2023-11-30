@@ -1,16 +1,17 @@
+{-# LANGUAGE InstanceSigs #-}
 -- It seems this is only needed on GHC <= 9.4
 {-# LANGUAGE UndecidableInstances #-}
 
--- | A queue data structure with \(\mathcal{O}(1)\) worst-case push and pop, as described in
+-- | A queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue, as described in
 --
 --   * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
 --
--- A queue can be thought to have a "back" where new elements are pushed, and a "front" where elements are popped in the
--- order that they were pushed.
+-- A queue can be thought to have a "back" where new elements are enqueued, and a "front" where elements are dequeued in
+-- the order that they were enqueued.
 --
--- This queue also supports a "push to front" operation, because the underlying representation happens to trivially
--- support it. For a variant that also supports a "pop from back" operation, see "Data.Deque".
+-- This queue also supports a "enqueue at front" operation, because the underlying representation happens to trivially
+-- support it. For a variant that also supports a "dequeue from back" operation, see "Data.Deque".
 --
 -- In this implementation, it is more helpful to think of the "front" being on the /left/, because (though the decision
 -- is arbitrary) we are consistent throughout, where it matters:
@@ -31,12 +32,12 @@ module Queue
     singleton,
 
     -- * Basic interface
-    push,
-    pop,
+    enqueue,
+    dequeue,
 
     -- ** Extended interface
-    pushFront,
-    popWhile,
+    enqueueFront,
+    dequeueWhile,
 
     -- * Queries
     isEmpty,
@@ -51,11 +52,11 @@ import Data.Foldable qualified as Foldable
 import Data.Kind (Constraint)
 import GHC.Exts (Any)
 import GHC.TypeError qualified as TypeError
-import Queue.Internal.Prelude
+import Queue.Internal.Prelude (NonEmptyList, listFoldMapBackwards, pattern NonEmptyList)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (foldMap, length, span)
 
--- | A queue data structure with \(\mathcal{O}(1)\) worst-case push and pop.
+-- | A queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue.
 data Queue a
   = Queue
       -- The front of the queue.
@@ -68,15 +69,26 @@ data Queue a
       Schedule
 
 instance (Eq a) => Eq (Queue a) where
+  (==) :: Queue a -> Queue a -> Bool
   xs == ys =
     toList xs == toList ys
 
 instance Foldable Queue where
+  foldMap :: (Monoid m) => (a -> m) -> Queue a -> m
   foldMap f (Queue xs ys _) =
     Foldable.foldMap f xs <> listFoldMapBackwards f ys
-  elem x (Queue xs ys _) = elem x xs || elem x ys
-  null = isEmpty
-  toList = toList
+
+  elem :: (Eq a) => a -> Queue a -> Bool
+  elem x (Queue xs ys _) =
+    elem x xs || elem x ys
+
+  null :: Queue a -> Bool
+  null =
+    isEmpty
+
+  toList :: Queue a -> [a]
+  toList =
+    toList
 
 type NoFunctorInstance :: Constraint
 type NoFunctorInstance =
@@ -95,24 +107,24 @@ instance Monoid (Queue a) where
 -- | \(\mathcal{O}(n)\), where \(n\) is the size of the first argument.
 instance Semigroup (Queue a) where
   Empty <> ys = ys
-  Front x xs <> ys = push x (xs <> ys)
+  Front x xs <> ys = enqueue x (xs <> ys)
 
 instance (Show a) => Show (Queue a) where
   show = show . toList
 
 -- | An empty queue.
 pattern Empty :: Queue a
-pattern Empty <- (pop -> Nothing)
+pattern Empty <- (dequeue -> Nothing)
 
 -- | The front of a queue, and the rest of it.
 pattern Front :: a -> Queue a -> Queue a
-pattern Front x xs <- (pop -> Just (x, xs))
+pattern Front x xs <- (dequeue -> Just (x, xs))
 
 {-# COMPLETE Empty, Front #-}
 
 -- Queue smart constructor.
 --
--- `queue xs ys zs` is always called when |zs| = |xs| - |ys| + 1 (i.e. just after a push or pop)
+-- `queue xs ys zs` is always called when |zs| = |xs| - |ys| + 1 (i.e. just after a enqueue or dequeue)
 makeQueue :: [a] -> [a] -> Schedule -> Queue a
 makeQueue xs ys = \case
   NoMoreWorkToDo -> let xs1 = rotate ys [] xs in Queue xs1 [] (schedule xs1)
@@ -137,27 +149,27 @@ singleton x =
   where
     xs = [x]
 
--- | \(\mathcal{O}(1)\). Push an element onto the back of a queue, to be popped last.
-push :: a -> Queue a -> Queue a
-push y (Queue xs ys zs) =
+-- | \(\mathcal{O}(1)\). Enqueue an element at the back of a queue, to be dequeued last.
+enqueue :: a -> Queue a -> Queue a
+enqueue y (Queue xs ys zs) =
   makeQueue xs (y : ys) zs
 
--- | \(\mathcal{O}(1)\). Pop an element off of the front of a queue.
-pop :: Queue a -> Maybe (a, Queue a)
-pop = \case
+-- | \(\mathcal{O}(1)\). Dequeue an element from the front of a queue.
+dequeue :: Queue a -> Maybe (a, Queue a)
+dequeue = \case
   Queue [] _ _ -> Nothing
   Queue (x : xs) ys zs -> Just (x, makeQueue xs ys zs)
 
--- | \(\mathcal{O}(1)\). Push an element onto the front of a queue, to be popped next.
-pushFront :: a -> Queue a -> Queue a
-pushFront x (Queue xs ys zs) =
+-- | \(\mathcal{O}(1)\). Enqueue an element at the front of a queue, to be dequeued next.
+enqueueFront :: a -> Queue a -> Queue a
+enqueueFront x (Queue xs ys zs) =
   -- smart constructor not needed here
   -- we also add useless work to the schedule to maintain the convenient rotate-on-empty-schedule trigger
   Queue (x : xs) ys (delay x zs)
 
--- | Pop elements off of the front of a queue while a predicate is satisfied.
-popWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
-popWhile p queue0 =
+-- | Dequeue elements from the front of a queue while a predicate is satisfied.
+dequeueWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
+dequeueWhile p queue0 =
   case span p queue0 of
     (queue1, queue2) -> (toList queue1, queue2)
 
@@ -168,8 +180,8 @@ span p =
     go acc = \case
       Empty -> (acc, empty)
       Front x xs
-        | p x -> go (push x acc) xs
-        | otherwise -> (acc, pushFront x xs)
+        | p x -> go (enqueue x acc) xs
+        | otherwise -> (acc, enqueueFront x xs)
 
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: Queue a -> Bool
