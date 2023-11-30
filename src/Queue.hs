@@ -76,23 +76,43 @@ data Queue a
   deriving stock (Functor)
 
 instance (Eq a) => Eq (Queue a) where
+  (==) :: Queue a -> Queue a -> Bool
   xs == ys =
     length xs == length ys && toList xs == toList ys
 
 instance Foldable Queue where
+  foldMap :: (Monoid m) => (a -> m) -> Queue a -> m
   foldMap f (Queue xs ms _ ys _) =
     Foldable.foldMap f xs <> Foldable.foldMap (Foldable.foldMap f) ms <> listFoldMapBackwards f ys
-  elem x (Queue xs ms _ ys _) = elem x xs || any (elem x) ms || elem x ys
-  length = length
-  null = isEmpty
-  toList = toList
+
+  elem :: (Eq a) => a -> Queue a -> Bool
+  elem x (Queue xs ms _ ys _) =
+    elem x xs || any (elem x) ms || elem x ys
+
+  length :: Queue a -> Int
+  length =
+    length
+
+  null :: Queue a -> Bool
+  null =
+    isEmpty
+
+  toList :: Queue a -> [a]
+  toList =
+    toList
 
 instance Monoid (Queue a) where
-  mempty = empty
-  mappend = (<>)
+  mempty :: Queue a
+  mempty =
+    empty
+
+  mappend :: Queue a -> Queue a -> Queue a
+  mappend =
+    (<>)
 
 -- | \(\mathcal{O}(n)\), where \(n\) is the size of the smaller argument.
 instance Semigroup (Queue a) where
+  (<>) :: Queue a -> Queue a -> Queue a
   xs <> ys
     -- Either enqueue xs onto the front of ys, or ys onto the back of xs, depending on which one would be fewer
     -- enqueues.
@@ -100,10 +120,14 @@ instance Semigroup (Queue a) where
     | otherwise = append xs ys
 
 instance (Show a) => Show (Queue a) where
-  show = show . toList
+  show :: Queue a -> String
+  show =
+    show . toList
 
 instance Traversable Queue where
-  traverse = traverse
+  traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
+  traverse =
+    traverse
 
 -- | An empty queue.
 pattern Empty :: Queue a
