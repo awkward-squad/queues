@@ -5,25 +5,27 @@ import Queue qualified
 import RealTimeDeque qualified
 import RealTimeQueue qualified
 import Test.Tasty (localOption)
-import Test.Tasty.Bench (RelStDev (..), bcompare, bench, bgroup, defaultMain, whnf)
+import Test.Tasty.Bench (RelStDev (..), bench, bgroup, defaultMain, whnf)
+
+-- Yeesh... you get very different numbers if you run more than one benchmark at a time. Why?
 
 main :: IO ()
 main =
   defaultMain
     [ let n = 10000 :: Int
-          queue = useQueueInARealisticWay Queue.empty Queue.enqueue Queue.dequeue
-          rtqueue = useQueueInARealisticWay RealTimeQueue.empty RealTimeQueue.enqueue RealTimeQueue.dequeue
-          rtdeque = useQueueInARealisticWay RealTimeDeque.empty RealTimeDeque.enqueue RealTimeDeque.dequeue
           dataseq = useQueueInARealisticWay Seq.empty (flip (Seq.|>)) \case
             Seq.Empty -> Nothing
             x Seq.:<| xs -> Just (x, xs)
-       in localOption (RelStDev 0.02) $
+          queue = useQueueInARealisticWay Queue.empty Queue.enqueue Queue.dequeue
+          rtqueue = useQueueInARealisticWay RealTimeQueue.empty RealTimeQueue.enqueue RealTimeQueue.dequeue
+          rtdeque = useQueueInARealisticWay RealTimeDeque.empty RealTimeDeque.enqueue RealTimeDeque.dequeue
+       in localOption (RelStDev 0.01) $
             bgroup
               "realistic usage"
-              [ bench "Seq" (whnf dataseq n),
-                bcompare "Seq" $ bench "Queue" (whnf queue n),
-                bcompare "Seq" $ bench "RealTimeQueue" (whnf rtqueue n),
-                bcompare "Seq" $ bench "RealTimeDeque" (whnf rtdeque n)
+              [ -- bench "Seq" (whnf dataseq n)
+                -- bench "Queue" (whnf queue n)
+                -- bench "RealTimeQueue" (whnf rtqueue n)
+                bench "RealTimeDeque" (whnf rtdeque n)
               ]
     ]
 

@@ -3,7 +3,7 @@
 
 -- | A double-ended queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue, as described in
 --
---   * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
+--   * Okasaki, Chris. \"Simple and efficient purely functional queues and deques.\" /Journal of functional programming/ 5.4 (1995): 583-592.
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
 module RealTimeDeque
   ( -- * Deque

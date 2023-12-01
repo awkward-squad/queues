@@ -2,17 +2,35 @@
 --
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
 --
--- A queue can be thought to have a "back" where new elements are enqueued, and a "front" where elements are dequeued in
--- the order that they were enqueued.
+-- A queue can be thought to have a \"back\" where new elements are enqueued, and a \"front\" where elements are
+-- dequeued in the order that they were enqueued.
 --
--- This queue also supports a "enqueue at front" operation, because the underlying representation happens to trivially
--- support it. For a variant that also supports a "dequeue from back" operation, see "Data.Deque".
+-- This queue also supports a \"enqueue at front\" operation, because the underlying representation happens to trivially
+-- support it. (For a variant that also supports a \"dequeue from back\" operation, see "RealTimeDeque".)
 --
--- In this implementation, it is more helpful to think of the "front" being on the /left/, because (though the decision
--- is arbitrary) we are consistent throughout, where it matters:
+-- In this implementation, it is more helpful to think of the \"front\" being on the /left/, because (though the
+-- decision is arbitrary) we are consistent throughout, where it matters:
 --
 --   * List conversion functions associate the head of a list with the front of a queue.
 --   * The append operator @xs <> ys@ creates a queue with @xs@ in front of @ys@.
+--
+-- Performance comparison to other types:
+--
+--   +---+-----------------------------+-----------------+
+--   |   | @Queue@                     |                 |
+--   +===+=============================+=================+
+--   | ✔ | is @5.0@ times faster than  | @Seq@           |
+--   +---+-----------------------------+                 |
+--   | ✔ | allocates @15%@ as much as  |                 |
+--   +---+-----------------------------+-----------------+
+--   | ✔ | is @1.9@ times faster than  | "RealTimeQueue" |
+--   +---+-----------------------------+                 |
+--   | ✔ | allocates @55%@ as much as  |                 |
+--   +---+-----------------------------+-----------------+
+--   | ✔ | is @12.3@ times faster than | "RealTimeDeque" |
+--   +---+-----------------------------+                 |
+--   | ✔ | allocates @8.3%@ as much as |                 |
+--   +---+-----------------------------+-----------------+
 module Queue
   ( -- * Queue
     Queue (Empty, Front),

@@ -19,6 +19,24 @@ description:
   .
     * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
     * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
+  .
+  This package provides two queue variants and one deque, whose salient differences are summarized in the following table:
+  .
+  +-----------------+----------------------+--------------------+
+  |                 | @"Queue"@            | @"RealTimeQueue"@  |
+  +=================+======================+====================+
+  | @enqueue@       | \(\mathcal{O}(1)^*\) | \(\mathcal{O}(1)\) |
+  +-----------------+----------------------+--------------------+
+  | @dequeue@       | \(\mathcal{O}(1)^*\) | \(\mathcal{O}(1)\) |
+  +-----------------+----------------------+--------------------+
+  | @length@        | \(\mathcal{O}(1)\)   | \(\mathcal{O}(n)\) |
+  +-----------------+----------------------+--------------------+
+  | @fromList@      | \(\mathcal{O}(n)\)   | \(\mathcal{O}(1)\) |
+  +-----------------+----------------------+--------------------+
+  | @Functor@       | ✔                    | ✘                  |
+  +-----------------+----------------------+--------------------+
+  .
+    * \(^*\) Amortized.
 
 extra-doc-files:
   CHANGELOG.md
