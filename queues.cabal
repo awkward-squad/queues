@@ -54,10 +54,13 @@ common component
     DataKinds
     DeriveFunctor
     DerivingStrategies
+    DuplicateRecordFields
+    ExistentialQuantification
     GeneralizedNewtypeDeriving
     ImportQualifiedPost
     InstanceSigs
     LambdaCase
+    NamedFieldPuns
     OverloadedStrings
     PatternSynonyms
     RankNTypes
