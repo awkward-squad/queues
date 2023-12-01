@@ -1,69 +1,69 @@
+{-# OPTIONS_GHC -ddump-stg-final -ddump-to-file #-}
+
 module Main (main) where
 
+import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
+import EphemeralQueue qualified
 import Queue qualified
 import RealTimeDeque qualified
 import RealTimeQueue qualified
 import Test.Tasty (localOption)
 import Test.Tasty.Bench (RelStDev (..), bench, bgroup, defaultMain, whnf)
 
--- Yeesh... you get very different numbers if you run more than one benchmark at a time. Why?
-
 main :: IO ()
 main =
   defaultMain
     [ let n = 10000 :: Int
-          dataseq = useQueueInARealisticWay Seq.empty (flip (Seq.|>)) \case
-            Seq.Empty -> Nothing
-            x Seq.:<| xs -> Just (x, xs)
+          dataseq = useQueueInARealisticWay Seq.empty seqEnqueue seqDequeue
           queue = useQueueInARealisticWay Queue.empty Queue.enqueue Queue.dequeue
           rtqueue = useQueueInARealisticWay RealTimeQueue.empty RealTimeQueue.enqueue RealTimeQueue.dequeue
+          equeue = useQueueInARealisticWay EphemeralQueue.empty EphemeralQueue.enqueue EphemeralQueue.dequeue
           rtdeque = useQueueInARealisticWay RealTimeDeque.empty RealTimeDeque.enqueue RealTimeDeque.dequeue
-       in localOption (RelStDev 0.01) $
+       in localOption (RelStDev 0.02) $
             bgroup
               "realistic usage"
-              [ -- bench "Seq" (whnf dataseq n)
-                -- bench "Queue" (whnf queue n)
-                -- bench "RealTimeQueue" (whnf rtqueue n)
+              [ bench "Seq" (whnf dataseq n),
+                bench "Queue" (whnf queue n),
+                bench "RealTimeQueue" (whnf rtqueue n),
+                bench "EphemeralQueue" (whnf equeue n),
                 bench "RealTimeDeque" (whnf rtdeque n)
               ]
     ]
 
+seqEnqueue :: a -> Seq a -> Seq a
+seqEnqueue = \x xs -> xs Seq.|> x
+{-# INLINE seqEnqueue #-}
+
+seqDequeue :: Seq a -> Maybe (a, Seq a)
+seqDequeue = \xs ->
+  case Seq.viewl xs of
+    Seq.EmptyL -> Nothing
+    y Seq.:< ys -> Just (y, ys)
+{-# INLINE seqDequeue #-}
+
 useQueueInARealisticWay ::
   forall queue.
-  queue () ->
-  (() -> queue () -> queue ()) ->
-  (queue () -> Maybe ((), queue ())) ->
+  queue Int ->
+  (Int -> queue Int -> queue Int) ->
+  (queue Int -> Maybe (Int, queue Int)) ->
   Int ->
   Int
-useQueueInARealisticWay empty enqueue dequeue num =
-  let -- `loop1 0` enqueues n elemets
-      loop1 :: Int -> queue () -> queue ()
-      loop1 !n q
-        | n == num = q
-        | otherwise = loop1 (n + 1) (enqueue () q)
+useQueueInARealisticWay empty enqueue dequeue = \num ->
+  let -- loop1: dequeue 1, enqueue 2
+      loop1 :: Int -> Int -> queue Int -> Int
+      loop1 !n !acc queue
+        | n == num = loop2 acc queue
+        | otherwise =
+            case dequeue queue of
+              Nothing -> undefined
+              Just (m, queue') -> loop1 (n + 1) (acc + m) (enqueue n (enqueue (n + 1) queue'))
 
-      -- `loop2 0` dequeues 1 and enqueues 2 n times (leaving queue at 2n elements)
-      loop2 :: Int -> queue () -> queue ()
-      loop2 !n q
-        | n == num = q
-        | otherwise = loop2 (n + 1) (enqueue () (enqueue () (dequeue_ q)))
-
-      -- `loop3 0` dequeues 2 and enqueues 1 n times (leaving queue at n elements)
-      loop3 :: Int -> queue () -> queue ()
-      loop3 !n q
-        | n == num = q
-        | otherwise = loop3 (n + 1) (enqueue () (dequeue_ (dequeue_ q)))
-
-      -- `loop4 0` dequeues until there's nothing left and returns how many were dequeued
-      loop4 :: Int -> queue () -> Int
-      loop4 !n q =
-        case dequeue q of
+      -- loop2: dequeue
+      loop2 :: Int -> queue Int -> Int
+      loop2 !n queue =
+        case dequeue queue of
           Nothing -> n
-          Just (_, q') -> loop4 (n + 1) q'
-   in loop4 0 (loop3 0 (loop2 0 (loop1 0 empty)))
-  where
-    dequeue_ q =
-      case dequeue q of
-        Nothing -> q
-        Just (_, q') -> q'
+          Just (m, queue') -> loop2 (n + m) queue'
+   in loop1 0 0 (enqueue 0 empty)
+{-# INLINE useQueueInARealisticWay #-}

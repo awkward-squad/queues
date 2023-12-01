@@ -70,7 +70,7 @@ import Prelude hiding (foldMap, length, span)
 
 -- | A queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue.
 data RealTimeQueue a
-  = Queue
+  = Q
       -- The front of the queue.
       -- Invariant: length >= length of back
       [a]
@@ -87,11 +87,11 @@ instance (Eq a) => Eq (RealTimeQueue a) where
 
 instance Foldable RealTimeQueue where
   foldMap :: (Monoid m) => (a -> m) -> RealTimeQueue a -> m
-  foldMap f (Queue xs ys _) =
+  foldMap f (Q xs ys _) =
     Foldable.foldMap f xs <> listFoldMapBackwards f ys
 
   elem :: (Eq a) => a -> RealTimeQueue a -> Bool
-  elem x (Queue xs ys _) =
+  elem x (Q xs ys _) =
     elem x xs || elem x ys
 
   null :: RealTimeQueue a -> Bool
@@ -139,8 +139,9 @@ pattern Front x xs <- (dequeue -> Just (x, xs))
 -- `queue xs ys zs` is always called when |zs| = |xs| - |ys| + 1 (i.e. just after a enqueue or dequeue)
 makeQueue :: [a] -> [a] -> Schedule -> RealTimeQueue a
 makeQueue xs ys = \case
-  NoMoreWorkToDo -> let xs1 = rotate ys [] xs in Queue xs1 [] (schedule xs1)
-  DidWork zs -> Queue xs ys zs
+  NoMoreWorkToDo -> let xs1 = rotate ys [] xs in Q xs1 [] (schedule xs1)
+  DidWork zs -> Q xs ys zs
+{-# INLINE makeQueue #-}
 
 -- rotate ys zs xs = xs ++ reverse ys ++ zs
 -- Precondition: |ys| = |xs| + 1
@@ -152,42 +153,46 @@ rotate (NonEmptyList y ys) zs = \case
 -- | An empty queue.
 empty :: RealTimeQueue a
 empty =
-  Queue [] [] NoMoreWorkToDo
+  Q [] [] NoMoreWorkToDo
 
 -- | A singleton queue.
 singleton :: a -> RealTimeQueue a
 singleton x =
-  Queue xs [] (schedule xs)
+  Q xs [] (schedule xs)
   where
     xs = [x]
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the back of a queue, to be dequeued last.
 enqueue :: a -> RealTimeQueue a -> RealTimeQueue a
-enqueue y (Queue xs ys zs) =
+enqueue y (Q xs ys zs) =
   makeQueue xs (y : ys) zs
+{-# INLINEABLE enqueue #-}
 
 -- | \(\mathcal{O}(1)\). Dequeue an element from the front of a queue.
 dequeue :: RealTimeQueue a -> Maybe (a, RealTimeQueue a)
 dequeue = \case
-  Queue [] _ _ -> Nothing
-  Queue (x : xs) ys zs -> Just (x, makeQueue xs ys zs)
+  Q [] _ _ -> Nothing
+  Q (x : xs) ys zs -> Just (x, makeQueue xs ys zs)
+{-# INLINEABLE dequeue #-}
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the front of a queue, to be dequeued next.
 enqueueFront :: a -> RealTimeQueue a -> RealTimeQueue a
-enqueueFront x (Queue xs ys zs) =
+enqueueFront x (Q xs ys zs) =
   -- smart constructor not needed here
   -- we also add useless work to the schedule to maintain the convenient rotate-on-empty-schedule trigger
-  Queue (x : xs) ys (delay x zs)
+  Q (x : xs) ys (delay x zs)
+{-# INLINEABLE enqueueFront #-}
 
 -- | Dequeue elements from the front of a queue while a predicate is satisfied.
 dequeueWhile :: (a -> Bool) -> RealTimeQueue a -> ([a], RealTimeQueue a)
 dequeueWhile p queue0 =
-  case span p queue0 of
+  case span p empty queue0 of
     (queue1, queue2) -> (toList queue1, queue2)
+{-# INLINEABLE dequeueWhile #-}
 
-span :: (a -> Bool) -> RealTimeQueue a -> (RealTimeQueue a, RealTimeQueue a)
+span :: (a -> Bool) -> RealTimeQueue a -> RealTimeQueue a -> (RealTimeQueue a, RealTimeQueue a)
 span p =
-  go empty
+  go
   where
     go acc = \case
       Empty -> (acc, empty)
@@ -198,20 +203,23 @@ span p =
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: RealTimeQueue a -> Bool
 isEmpty = \case
-  Queue [] _ _ -> True
+  Q [] _ _ -> True
   _ -> False
+{-# INLINEABLE isEmpty #-}
 
 -- | \(\mathcal{O}(1)\). Construct a queue from a list, where the head of the list corresponds to the front of the
 -- queue.
 fromList :: [a] -> RealTimeQueue a
 fromList xs =
-  Queue xs [] (schedule xs)
+  Q xs [] (schedule xs)
+{-# INLINEABLE fromList #-}
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue, where the head of the list corresponds to the front of the
 -- queue.
 toList :: RealTimeQueue a -> [a]
-toList (Queue xs ys _) =
+toList (Q xs ys _) =
   xs ++ reverse ys
+{-# INLINEABLE toList #-}
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Schedule utils

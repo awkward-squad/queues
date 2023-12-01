@@ -78,7 +78,7 @@ import Prelude hiding (foldMap, length, map, span, traverse)
 
 -- | A queue data structure with \(\mathcal{O}(1)\) amortized enqueue and dequeue.
 data Queue a
-  = Queue
+  = Q
       -- The head of the queue, e.g. [1,2,3]
       -- Invariant: empty iff queue is empty
       [a]
@@ -100,11 +100,11 @@ instance (Eq a) => Eq (Queue a) where
 
 instance Foldable Queue where
   foldMap :: (Monoid m) => (a -> m) -> Queue a -> m
-  foldMap f (Queue xs ms _ ys _) =
+  foldMap f (Q xs ms _ ys _) =
     Foldable.foldMap f xs <> Foldable.foldMap (Foldable.foldMap f) ms <> listFoldMapBackwards f ys
 
   elem :: (Eq a) => a -> Queue a -> Bool
-  elem x (Queue xs ms _ ys _) =
+  elem x (Q xs ms _ ys _) =
     elem x xs || any (elem x) ms || elem x ys
 
   length :: Queue a -> Int
@@ -159,52 +159,58 @@ pattern Front x xs <- (dequeue -> Just (x, xs))
 
 -- Queue smart constructor.
 makeQueue :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> Queue a
-makeQueue [] [] _ ys ylen = Queue ys [] ylen [] 0
+makeQueue [] [] _ ys ylen = Q ys [] ylen [] 0
 makeQueue [] (m : ms) xlen ys ylen = makeQueue1 m ms xlen ys ylen
 makeQueue xs ms xlen ys ylen = makeQueue1 xs ms xlen ys ylen
+{-# INLINE makeQueue #-}
 
 -- Queue smart constructor.
 makeQueue1 :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> Queue a
 makeQueue1 xs ms xlen ys ylen
-  | ylen <= xlen = Queue xs ms xlen ys ylen
-  | otherwise = Queue xs (ms ++ [reverse ys]) (xlen + ylen) [] 0
+  | ylen <= xlen = Q xs ms xlen ys ylen
+  | otherwise = Q xs (ms ++ [reverse ys]) (xlen + ylen) [] 0
+{-# INLINE makeQueue1 #-}
 
 -- | An empty queue.
 empty :: Queue a
 empty =
-  Queue [] [] 0 [] 0
+  Q [] [] 0 [] 0
 
 -- | A singleton queue.
 singleton :: a -> Queue a
 singleton x =
-  Queue [x] [] 1 [] 0
+  Q [x] [] 1 [] 0
 
 -- | \(\mathcal{O}(1)\) amortized. Enqueue an element at the back of a queue, to be dequeued last.
 enqueue :: a -> Queue a -> Queue a
-enqueue y (Queue xs ms xlen ys ylen) =
+enqueue y (Q xs ms xlen ys ylen) =
   makeQueue xs ms xlen (y : ys) (ylen + 1)
+{-# INLINEABLE enqueue #-}
 
 -- | \(\mathcal{O}(1)\) amortized. Dequeue an element from the front of a queue.
 dequeue :: Queue a -> Maybe (a, Queue a)
 dequeue = \case
-  Queue [] _ _ _ _ -> Nothing
-  Queue (x : xs) ms xlen ys ylen -> Just (x, makeQueue xs ms (xlen - 1) ys ylen)
+  Q [] _ _ _ _ -> Nothing
+  Q (x : xs) ms xlen ys ylen -> Just (x, makeQueue xs ms (xlen - 1) ys ylen)
+{-# INLINEABLE dequeue #-}
 
 -- | \(\mathcal{O}(1)\) amortized. Enqueue an element at the front of a queue, to be dequeued next.
 enqueueFront :: a -> Queue a -> Queue a
-enqueueFront x (Queue xs ms xlen ys ylen) =
+enqueueFront x (Q xs ms xlen ys ylen) =
   -- smart constructor not needed here
-  Queue (x : xs) ms (xlen + 1) ys ylen
+  Q (x : xs) ms (xlen + 1) ys ylen
+{-# INLINEABLE enqueueFront #-}
 
 -- | Dequeue elements from the front of a queue while a predicate is satisfied.
 dequeueWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
 dequeueWhile p queue0 =
-  case span p queue0 of
+  case span p empty queue0 of
     (queue1, queue2) -> (toList queue1, queue2)
+{-# INLINEABLE dequeueWhile #-}
 
-span :: (a -> Bool) -> Queue a -> (Queue a, Queue a)
+span :: (a -> Bool) -> Queue a -> Queue a -> (Queue a, Queue a)
 span p =
-  go empty
+  go
   where
     go acc = \case
       Empty -> (acc, empty)
@@ -214,13 +220,15 @@ span p =
 
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: Queue a -> Bool
-isEmpty (Queue _ _ xlen _ _) =
+isEmpty (Q _ _ xlen _ _) =
   xlen == 0
+{-# INLINEABLE isEmpty #-}
 
 -- | \(\mathcal{O}(1)\). How many elements are in a deque?
 length :: Queue a -> Int
-length (Queue _ _ xlen _ ylen) =
+length (Q _ _ xlen _ ylen) =
   xlen + ylen
+{-# INLINEABLE length #-}
 
 -- @append xs ys@ enqueues @ys@ at the back of @ys@.
 append :: Queue a -> Queue a -> Queue a
@@ -239,8 +247,8 @@ map =
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
 traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
-traverse f (Queue xs ms xlen ys ylen) =
-  Queue
+traverse f (Q xs ms xlen ys ylen) =
+  Q
     <$> Traversable.traverse f xs
     <*> Traversable.traverse (Traversable.traverse f) ms
     <*> pure xlen
@@ -253,15 +261,18 @@ traverse f (Queue xs ms xlen ys ylen) =
         go = \case
           [] -> pure []
           z : zs -> flip (:) <$> go zs <*> f z
+{-# INLINEABLE traverse #-}
 
 -- | \(\mathcal{O}(n)\). Construct a queue from a list, where the head of the list corresponds to the front of the
 -- queue.
 fromList :: [a] -> Queue a
 fromList xs =
-  Queue xs [] (List.length xs) [] 0
+  Q xs [] (List.length xs) [] 0
+{-# INLINEABLE fromList #-}
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue, where the head of the list corresponds to the front of the
 -- queue.
 toList :: Queue a -> [a]
-toList (Queue xs ms _ ys _) =
+toList (Q xs ms _ ys _) =
   xs ++ concat ms ++ reverse ys
+{-# INLINEABLE toList #-}

@@ -81,6 +81,7 @@ singleton x =
 enqueue :: a -> EphemeralQueue a -> EphemeralQueue a
 enqueue y (Q xs ys) =
   Q xs (y : ys)
+{-# INLINEABLE enqueue #-}
 
 dequeue :: EphemeralQueue a -> Maybe (a, EphemeralQueue a)
 dequeue = \case
@@ -89,20 +90,23 @@ dequeue = \case
       [] -> Nothing
       x : xs -> Just (x, Q xs [])
   Q (x : xs) ys -> Just (x, Q xs ys)
+{-# INLINEABLE dequeue #-}
 
 enqueueFront :: a -> EphemeralQueue a -> EphemeralQueue a
 enqueueFront x (Q xs ys) =
   Q (x : xs) ys
+{-# INLINEABLE enqueueFront #-}
 
 -- | Dequeue elements from the front of a queue while a predicate is satisfied.
 dequeueWhile :: (a -> Bool) -> EphemeralQueue a -> ([a], EphemeralQueue a)
 dequeueWhile p queue0 =
-  case span p queue0 of
+  case span p empty queue0 of
     (queue1, queue2) -> (toList queue1, queue2)
+{-# INLINEABLE dequeueWhile #-}
 
-span :: (a -> Bool) -> EphemeralQueue a -> (EphemeralQueue a, EphemeralQueue a)
+span :: (a -> Bool) -> EphemeralQueue a -> EphemeralQueue a -> (EphemeralQueue a, EphemeralQueue a)
 span p =
-  go empty
+  go
   where
     go acc = \case
       Empty -> (acc, empty)
@@ -114,6 +118,7 @@ isEmpty :: EphemeralQueue a -> Bool
 isEmpty = \case
   Q [] [] -> True
   _ -> False
+{-# INLINEABLE isEmpty #-}
 
 map :: (a -> b) -> EphemeralQueue a -> EphemeralQueue b
 map =
@@ -131,11 +136,14 @@ traverse f (Q xs ys) =
         go = \case
           [] -> pure []
           z : zs -> flip (:) <$> go zs <*> f z
+{-# INLINEABLE traverse #-}
 
 fromList :: [a] -> EphemeralQueue a
 fromList xs =
   Q xs []
+{-# INLINEABLE fromList #-}
 
 toList :: EphemeralQueue a -> [a]
 toList (Q xs ys) =
   xs ++ reverse ys
+{-# INLINEABLE toList #-}
