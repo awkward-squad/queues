@@ -68,12 +68,6 @@ pattern Front x xs <- (dequeue -> Just (x, xs))
 
 {-# COMPLETE Empty, Front #-}
 
--- Queue smart constructor.
-makeQueue :: [a] -> [a] -> EphemeralQueue a
-makeQueue [] [] = Q [] []
-makeQueue [] ys = Q (reverse ys) []
-makeQueue xs ys = Q xs ys
-
 -- | An empty queue.
 empty :: EphemeralQueue a
 empty =
@@ -90,8 +84,11 @@ enqueue y (Q xs ys) =
 
 dequeue :: EphemeralQueue a -> Maybe (a, EphemeralQueue a)
 dequeue = \case
-  Q [] _ -> Nothing
-  Q (x : xs) ys -> Just (x, makeQueue xs ys)
+  Q [] ys ->
+    case reverse ys of
+      [] -> Nothing
+      x : xs -> Just (x, Q xs [])
+  Q (x : xs) ys -> Just (x, Q xs ys)
 
 enqueueFront :: a -> EphemeralQueue a -> EphemeralQueue a
 enqueueFront x (Q xs ys) =
