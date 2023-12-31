@@ -208,7 +208,7 @@ append :: RealTimeDeque a -> RealTimeDeque a -> RealTimeDeque a
 append xs Empty = xs
 append xs (Front y ys) = append (enqueue y xs) ys
 
--- O(xs). @prepend xs ys@ enqueues @xs@ onto the front of @ys@. O(xs).
+-- O(xs). @prepend xs ys@ enqueues @xs@ onto the front of @ys@.
 prepend :: RealTimeDeque a -> RealTimeDeque a -> RealTimeDeque a
 prepend Empty ys = ys
 prepend (Back xs x) ys = prepend xs (enqueueFront x ys)
@@ -241,8 +241,10 @@ execute1 :: Schedule -> Schedule
 execute1 = \case
   [] -> []
   _ : xs -> xs
+{-# INLINE execute1 #-}
 
 execute2 :: Schedule -> Schedule
 execute2 = \case
   _ : _ : xs -> xs
   _ -> []
+{-# INLINE execute2 #-}

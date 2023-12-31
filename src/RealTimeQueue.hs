@@ -242,3 +242,4 @@ schedule =
 delay :: a -> Schedule -> Schedule
 delay x =
   (unsafeCoerce x :)
+{-# INLINE delay #-}
