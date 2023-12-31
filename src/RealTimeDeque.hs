@@ -37,7 +37,7 @@ import Data.Kind (Constraint)
 import Data.List qualified as List
 import GHC.Exts (Any)
 import GHC.TypeError qualified as TypeError
-import Queue.Internal.Prelude
+import QueuesPrelude (listFoldMapBackwards)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (foldMap, length, reverse)
 
@@ -101,12 +101,12 @@ instance (Show a) => Show (RealTimeDeque a) where
   show =
     -- show . toList
     \(Q xs xlen xc ys ylen yc) ->
-      unlines [
-        "xs = " ++ show xs,
-        "xc = " ++ show (drop (xlen - Foldable.length xc) xs),
-        "ys = " ++ show ys,
-        "yc = " ++ show (drop (ylen - Foldable.length yc) ys)
-      ]
+      unlines
+        [ "xs = " ++ show xs,
+          "xc = " ++ show (drop (xlen - Foldable.length xc) xs),
+          "ys = " ++ show ys,
+          "yc = " ++ show (drop (ylen - Foldable.length yc) ys)
+        ]
 
 -- | An empty deque.
 pattern Empty :: RealTimeDeque a

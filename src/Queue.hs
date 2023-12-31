@@ -64,7 +64,7 @@ where
 import Data.Foldable qualified as Foldable
 import Data.List qualified as List
 import Data.Traversable qualified as Traversable
-import Queue.Internal.Prelude
+import QueuesPrelude (NonEmptyList, listFoldMapBackwards)
 import Prelude hiding (foldMap, length, map, span, traverse)
 
 -- Implementation note: there are a number of similar options presented in Okasaki's works:

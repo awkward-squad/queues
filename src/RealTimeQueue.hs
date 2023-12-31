@@ -64,7 +64,7 @@ import Data.Foldable qualified as Foldable
 import Data.Kind (Constraint)
 import GHC.Exts (Any)
 import GHC.TypeError qualified as TypeError
-import Queue.Internal.Prelude (NonEmptyList, listFoldMapBackwards, pattern NonEmptyList)
+import QueuesPrelude (NonEmptyList, listFoldMapBackwards, pattern NonEmptyList)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (foldMap, length, span)
 

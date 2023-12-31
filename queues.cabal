@@ -97,7 +97,7 @@ library
     RealTimeQueue
   hs-source-dirs: src
   other-modules:
-    Queue.Internal.Prelude
+    QueuesPrelude
 
 test-suite test
   import: component

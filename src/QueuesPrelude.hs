@@ -1,4 +1,4 @@
-module Queue.Internal.Prelude
+module QueuesPrelude
   ( NonEmptyList,
     pattern NonEmptyList,
     listFoldMapBackwards,
