@@ -12,13 +12,13 @@ ln -f -s $(cabal list-bin bench-real-time-queue) bin/bench-real-time-queue
 ln -f -s $(cabal list-bin bench-sequence-queue) bin/bench-sequence-queue
 
 echo "Running bin/bench-bankers-queue"
-./bin/bench-bankers-queue --csv bankers-queue.csv --quiet --stdev 2
+./bin/bench-bankers-queue --csv bankers-queue.csv --quiet --stdev 1
 
 echo "Running bin/bench-ephemeral-queue"
-./bin/bench-ephemeral-queue --csv ephemeral-queue.csv --quiet --stdev 2
+./bin/bench-ephemeral-queue --csv ephemeral-queue.csv --quiet --stdev 1
 
 echo "Running bin/bench-real-time-queue"
-./bin/bench-real-time-queue --csv real-time-queue.csv --quiet --stdev 2
+./bin/bench-real-time-queue --csv real-time-queue.csv --quiet --stdev 1
 
 echo "Running bin/bench-sequence-queue"
-./bin/bench-sequence-queue --csv sequence-queue.csv --quiet --stdev 2
+./bin/bench-sequence-queue --csv sequence-queue.csv --quiet --stdev 1
