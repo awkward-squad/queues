@@ -86,7 +86,7 @@ pattern Back xs x <-
 -- | An empty double-ended queue.
 empty :: AmortizedDeque a
 empty =
-  undefined
+  Q [] 0 [] 0
 
 enqueue :: a -> AmortizedDeque a -> AmortizedDeque a
 enqueue = undefined
