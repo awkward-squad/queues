@@ -76,13 +76,13 @@ data Iface a = forall queue.
 realTimeQueueIface :: Iface a
 realTimeQueueIface =
   Iface
-    RealTimeQueue.empty
-    RealTimeQueue.enqueue
-    RealTimeQueue.dequeue
-    RealTimeQueue.enqueueFront
+    Queue.empty
+    Queue.enqueue
+    Queue.dequeue
+    Queue.enqueueFront
     (error "Queue has no dequeueBack")
-    RealTimeQueue.toList
-    RealTimeQueue.fromList
+    Queue.toList
+    Queue.fromList
 
 ephemeralQueueIface :: Iface a
 ephemeralQueueIface =
