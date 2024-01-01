@@ -40,7 +40,7 @@ import Data.Traversable qualified as Traversable
 import GHC.Exts (Any)
 import QueuesPrelude (listFoldMapBackwards)
 import Unsafe.Coerce (unsafeCoerce)
-import Prelude hiding (foldMap, length, map, reverse, traverse)
+import Prelude hiding (drop, foldMap, length, map, reverse, take, traverse)
 
 -- | A double-ended queue data structure with \(\mathcal{O}(1)\) (worst-case) operations.
 data RealTimeDeque a
@@ -55,6 +55,7 @@ data RealTimeDeque a
 instance (Eq a) => Eq (RealTimeDeque a) where
   (==) :: RealTimeDeque a -> RealTimeDeque a -> Bool
   xs == ys =
+    -- FIXME make this faster
     length xs == length ys && toList xs == toList ys
 
 instance Foldable RealTimeDeque where
@@ -64,11 +65,11 @@ instance Foldable RealTimeDeque where
 
   elem :: (Eq a) => a -> RealTimeDeque a -> Bool
   elem x (Q xs _ _ ys _ _) =
-    elem x xs || elem x ys
+    List.elem x xs || List.elem x ys
 
   length :: RealTimeDeque a -> Int
   length =
-    length
+    RealTimeDeque.length
 
   null :: RealTimeDeque a -> Bool
   null =
@@ -76,7 +77,7 @@ instance Foldable RealTimeDeque where
 
   toList :: RealTimeDeque a -> [a]
   toList =
-    toList
+    RealTimeDeque.toList
 
 instance Functor RealTimeDeque where
   fmap :: (a -> b) -> RealTimeDeque a -> RealTimeDeque b
@@ -129,12 +130,12 @@ pattern Back xs x <-
 makeDeque :: [a] -> Int -> [Any] -> [a] -> Int -> [Any] -> RealTimeDeque a
 makeDeque xs xlen xc ys ylen yc
   | xlen > (3 * ylen + 1) =
-      let xs1 = take xlen1 xs
+      let xs1 = List.take xlen1 xs
           ys1 = rotate1 xlen1 ys xs
        in Q xs1 xlen1 (schedule xs1) ys1 ylen1 (schedule ys1)
   | ylen > (3 * xlen + 1) =
       let xs1 = rotate1 ylen1 xs ys
-          ys1 = take ylen1 ys
+          ys1 = List.take ylen1 ys
        in Q xs1 xlen1 (schedule xs1) ys1 ylen1 (schedule ys1)
   | otherwise = Q xs xlen xc ys ylen yc
   where
@@ -143,12 +144,12 @@ makeDeque xs xlen xc ys ylen yc
 {-# INLINE makeDeque #-}
 
 rotate1 :: Int -> [a] -> [a] -> [a]
-rotate1 i (x : xs) ys | i >= 3 = x : rotate1 (i - 3) xs (drop 3 ys)
-rotate1 i xs ys = rotate2 xs (drop i ys) []
+rotate1 i (x : xs) ys | i >= 3 = x : rotate1 (i - 3) xs (List.drop 3 ys)
+rotate1 i xs ys = rotate2 xs (List.drop i ys) []
 
 rotate2 :: [a] -> [a] -> [a] -> [a]
 rotate2 [] ys zs = List.reverse ys ++ zs
-rotate2 (x : xs) ys zs = x : rotate2 xs (drop 3 ys) (List.reverse (take 3 ys) ++ zs)
+rotate2 (x : xs) ys zs = x : rotate2 xs (List.drop 3 ys) (List.reverse (List.take 3 ys) ++ zs)
 
 -- | An empty double-ended queue.
 empty :: RealTimeDeque a
@@ -167,7 +168,7 @@ enqueueFront x (Q xs xlen xc ys ylen yc) =
   makeDeque (x : xs) (xlen + 1) (execute1 xc) ys ylen (execute1 yc)
 {-# INLINEABLE enqueueFront #-}
 
--- | \(\mathcal{O}(1)\). Dequeue an element from the front of a double-ended queue.
+-- | \(\mathcal{O}(1)\) front, \(\mathcal{O}(1)\) rest. Dequeue an element from the front of a double-ended queue.
 dequeue :: RealTimeDeque a -> Maybe (a, RealTimeDeque a)
 dequeue = \case
   Q [] _ _ [] _ _ -> Nothing
@@ -175,7 +176,7 @@ dequeue = \case
   Q (x : xs) xlen xc ys ylen yc -> Just (x, makeDeque xs (xlen - 1) (execute2 xc) ys ylen (execute2 yc))
 {-# INLINEABLE dequeue #-}
 
--- | \(\mathcal{O}(1)\). Dequeue an element from of the back of a double-ended queue.
+-- | \(\mathcal{O}(1)\) back, \(\mathcal{O}(1)\) rest. Dequeue an element from of the back of a double-ended queue.
 dequeueBack :: RealTimeDeque a -> Maybe (RealTimeDeque a, a)
 dequeueBack = \case
   Q [] _ _ [] _ _ -> Nothing
