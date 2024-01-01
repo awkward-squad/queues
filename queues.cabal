@@ -20,19 +20,19 @@ description:
     * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
     * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
   .
-  This package provides three queue variants and one deque, whose salient API differences are summarized in the following table:
+  This package provides two queue variants and one deque, whose salient API differences are summarized in the following table:
   .
-  +-----------------+----------------------+----------------------+--------------------+
-  |                 | @"AmortizedQueue"@   | @"EphemeralQueue"@   | @"RealTimeQueue"@  |
-  +=================+======================+======================+====================+
-  | @enqueue@       | \(\mathcal{O}(1)^*\) | \(\mathcal{O}(1)\)   | \(\mathcal{O}(1)\) |
-  +-----------------+----------------------+----------------------+--------------------+
-  | @dequeue@       | \(\mathcal{O}(1)^*\) | \(\mathcal{O}(1)^⧧\) | \(\mathcal{O}(1)\) |
-  +-----------------+----------------------+----------------------+--------------------+
-  | @length@        | \(\mathcal{O}(1)\)   | \(\mathcal{O}(n)\)   | \(\mathcal{O}(n)\) |
-  +-----------------+----------------------+----------------------+--------------------+
-  | @fromList@      | \(\mathcal{O}(n)\)   | \(\mathcal{O}(1)\)   | \(\mathcal{O}(1)\) |
-  +-----------------+----------------------+----------------------+--------------------+
+  +-----------------+----------------------+--------------------+
+  |                 | @"EphemeralQueue"@   | @"RealTimeQueue"@  |
+  +=================+======================+====================+
+  | @enqueue@       | \(\mathcal{O}(1)\)   | \(\mathcal{O}(1)\) |
+  +-----------------+----------------------+--------------------+
+  | @dequeue@       | \(\mathcal{O}(1)^⧧\) | \(\mathcal{O}(1)\) |
+  +-----------------+----------------------+--------------------+
+  | @length@        | \(\mathcal{O}(n)\)   | \(\mathcal{O}(n)\) |
+  +-----------------+----------------------+--------------------+
+  | @fromList@      | \(\mathcal{O}(1)\)   | \(\mathcal{O}(1)\) |
+  +-----------------+----------------------+--------------------+
   .
     * \(^*\) Amortized.
     * \(^⧧\) Amortized under ephemeral usage only.
@@ -94,12 +94,12 @@ library
     base ^>= 4.17 || ^>= 4.18 || ^>= 4.19,
   exposed-modules:
     AmortizedDeque
-    AmortizedQueue
     EphemeralQueue
     RealTimeDeque
     RealTimeQueue
   hs-source-dirs: src
   other-modules:
+    AmortizedQueue
     QueuesPrelude
 
 test-suite test

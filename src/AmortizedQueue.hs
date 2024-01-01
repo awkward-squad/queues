@@ -212,11 +212,12 @@ span :: (a -> Bool) -> AmortizedQueue a -> AmortizedQueue a -> (AmortizedQueue a
 span p =
   go
   where
-    go acc = \case
-      Empty -> (acc, empty)
-      Front x xs
-        | p x -> go (enqueue x acc) xs
-        | otherwise -> (acc, enqueueFront x xs)
+    go acc queue =
+      case queue of
+        Empty -> (acc, empty)
+        Front x xs
+          | p x -> go (enqueue x acc) xs
+          | otherwise -> (acc, queue)
 
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: AmortizedQueue a -> Bool

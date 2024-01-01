@@ -23,6 +23,8 @@ module RealTimeDeque
     length,
 
     -- * Transformations
+    map,
+    traverse,
     reverse,
 
     -- * List conversions
@@ -33,13 +35,12 @@ where
 
 import Data.Bits (unsafeShiftR)
 import Data.Foldable qualified as Foldable
-import Data.Kind (Constraint)
 import Data.List qualified as List
+import Data.Traversable qualified as Traversable
 import GHC.Exts (Any)
-import GHC.TypeError qualified as TypeError
 import QueuesPrelude (listFoldMapBackwards)
 import Unsafe.Coerce (unsafeCoerce)
-import Prelude hiding (foldMap, length, reverse)
+import Prelude hiding (foldMap, length, map, reverse, traverse)
 
 -- | A double-ended queue data structure with \(\mathcal{O}(1)\) (worst-case) operations.
 data RealTimeDeque a
@@ -77,11 +78,10 @@ instance Foldable RealTimeDeque where
   toList =
     toList
 
-type NoFunctorInstance :: Constraint
-type NoFunctorInstance = TypeError.TypeError ('TypeError.Text "The real-time deque does not admit a Functor instance.")
-
-instance (NoFunctorInstance) => Functor RealTimeDeque where
-  fmap = undefined
+instance Functor RealTimeDeque where
+  fmap :: (a -> b) -> RealTimeDeque a -> RealTimeDeque b
+  fmap =
+    map
 
 instance Monoid (RealTimeDeque a) where
   mempty :: RealTimeDeque a
@@ -99,14 +99,12 @@ instance Semigroup (RealTimeDeque a) where
 instance (Show a) => Show (RealTimeDeque a) where
   show :: RealTimeDeque a -> String
   show =
-    -- show . toList
-    \(Q xs xlen xc ys ylen yc) ->
-      unlines
-        [ "xs = " ++ show xs,
-          "xc = " ++ show (drop (xlen - Foldable.length xc) xs),
-          "ys = " ++ show ys,
-          "yc = " ++ show (drop (ylen - Foldable.length yc) ys)
-        ]
+    show . toList
+
+instance Traversable RealTimeDeque where
+  traverse :: (Applicative f) => (a -> f b) -> RealTimeDeque a -> f (RealTimeDeque b)
+  traverse =
+    traverse
 
 -- | An empty double-ended queue.
 pattern Empty :: RealTimeDeque a
@@ -201,7 +199,7 @@ length (Q _ xlen _ _ ylen _) =
 reverse :: RealTimeDeque a -> RealTimeDeque a
 reverse (Q xs xlen xc ys ylen yc) =
   Q ys ylen yc xs xlen xc
-{-# INLINEABLE reverse #-}
+{-# INLINE reverse #-}
 
 -- O(ys). @append xs ys@ enqueues @ys@ onto the back of @ys@.
 append :: RealTimeDeque a -> RealTimeDeque a -> RealTimeDeque a
@@ -213,12 +211,24 @@ prepend :: RealTimeDeque a -> RealTimeDeque a -> RealTimeDeque a
 prepend Empty ys = ys
 prepend (Back xs x) ys = prepend xs (enqueueFront x ys)
 
+-- | \(\mathcal{O}(n)\). Apply a function to every element in a double-ended queue.
+map :: (a -> b) -> RealTimeDeque a -> RealTimeDeque b
+map f =
+  fromList . List.map f . toList
+{-# INLINEABLE map #-}
+
+-- | \(\mathcal{O}(n)\). Apply a function to every element in a double-ended queue.
+traverse :: (Applicative f) => (a -> f b) -> RealTimeDeque a -> f (RealTimeDeque b)
+traverse f =
+  fmap fromList . Traversable.traverse f . toList
+{-# INLINEABLE traverse #-}
+
 -- | \(\mathcal{O}(n)\). Construct a double-ended queue from a list. The head of the list corresponds to the front of
 -- the double-ended queue.
 fromList :: [a] -> RealTimeDeque a
 fromList =
   foldr enqueueFront empty
-{-# INLINEABLE fromList #-}
+{-# INLINE fromList #-}
 
 -- | \(\mathcal{O}(n)\). Construct a list from a double-ended queue. The head of the list corresponds to the front of
 -- the double-ended queue.

@@ -54,6 +54,10 @@ module RealTimeQueue
     -- * Queries
     isEmpty,
 
+    -- * Transformations
+    map,
+    traverse,
+
     -- * List conversions
     fromList,
     toList,
@@ -61,10 +65,12 @@ module RealTimeQueue
 where
 
 import Data.Foldable qualified as Foldable
+import Data.List qualified as List
+import Data.Traversable qualified as Traversable
 import GHC.Exts (Any)
 import QueuesPrelude (NonEmptyList, listFoldMapBackwards, pattern NonEmptyList)
 import Unsafe.Coerce (unsafeCoerce)
-import Prelude hiding (foldMap, length, span)
+import Prelude hiding (foldMap, length, map, span, traverse)
 
 -- | A queue data structure with \(\mathcal{O}(1)\) (worst-case) operations.
 data RealTimeQueue a
@@ -102,9 +108,8 @@ instance Foldable RealTimeQueue where
 
 instance Functor RealTimeQueue where
   fmap :: (a -> b) -> RealTimeQueue a -> RealTimeQueue b
-  fmap f =
-    fromList . map f . toList
-  {-# INLINEABLE fmap #-}
+  fmap =
+    map
 
 instance Monoid (RealTimeQueue a) where
   mempty :: RealTimeQueue a
@@ -121,6 +126,11 @@ instance (Show a) => Show (RealTimeQueue a) where
   show :: RealTimeQueue a -> String
   show =
     show . toList
+
+instance Traversable RealTimeQueue where
+  traverse :: (Applicative f) => (a -> f b) -> RealTimeQueue a -> f (RealTimeQueue b)
+  traverse =
+    traverse
 
 -- | An empty queue.
 pattern Empty :: RealTimeQueue a
@@ -192,11 +202,12 @@ span :: (a -> Bool) -> RealTimeQueue a -> RealTimeQueue a -> (RealTimeQueue a, R
 span p =
   go
   where
-    go acc = \case
-      Empty -> (acc, empty)
-      Front x xs
-        | p x -> go (enqueue x acc) xs
-        | otherwise -> (acc, enqueueFront x xs)
+    go acc queue =
+      case queue of
+        Empty -> (acc, empty)
+        Front x xs
+          | p x -> go (enqueue x acc) xs
+          | otherwise -> (acc, queue)
 
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: RealTimeQueue a -> Bool
@@ -204,6 +215,18 @@ isEmpty = \case
   Q [] _ _ -> True
   _ -> False
 {-# INLINE isEmpty #-}
+
+-- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
+map :: (a -> b) -> RealTimeQueue a -> RealTimeQueue b
+map f =
+  fromList . List.map f . toList
+{-# INLINEABLE map #-}
+
+-- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
+traverse :: (Applicative f) => (a -> f b) -> RealTimeQueue a -> f (RealTimeQueue b)
+traverse f =
+  fmap fromList . Traversable.traverse f . toList
+{-# INLINEABLE traverse #-}
 
 -- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
 fromList :: [a] -> RealTimeQueue a
@@ -214,7 +237,7 @@ fromList xs =
 -- | \(\mathcal{O}(n)\). Construct a list from a queue. The head of the list corresponds to the front of the queue.
 toList :: RealTimeQueue a -> [a]
 toList (Q xs ys _) =
-  xs ++ reverse ys
+  xs ++ List.reverse ys
 {-# INLINEABLE toList #-}
 
 ------------------------------------------------------------------------------------------------------------------------
