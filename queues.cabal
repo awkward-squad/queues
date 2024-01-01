@@ -23,7 +23,7 @@ description:
   This package provides two queue variants and one deque, whose salient API differences are summarized in the following table:
   .
   +-----------------+----------------------+--------------------+
-  |                 | @"EphemeralQueue"@   | @"RealTimeQueue"@  |
+  |                 | @"EphemeralQueue"@   | @"Queue"@          |
   +=================+======================+====================+
   | @enqueue@       | \(\mathcal{O}(1)\)   | \(\mathcal{O}(1)\) |
   +-----------------+----------------------+--------------------+
@@ -95,8 +95,8 @@ library
   exposed-modules:
     AmortizedDeque
     EphemeralQueue
+    Queue
     RealTimeDeque
-    RealTimeQueue
   hs-source-dirs: src
   other-modules:
     AmortizedQueue

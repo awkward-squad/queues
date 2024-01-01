@@ -21,8 +21,8 @@ import Hedgehog
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Main qualified as Hedgehog (defaultMain)
 import Hedgehog.Range qualified as Range
+import Queue qualified
 import RealTimeDeque qualified
-import RealTimeQueue qualified
 
 main :: IO ()
 main = do
@@ -80,7 +80,7 @@ realTimeQueueIface =
     RealTimeQueue.enqueue
     RealTimeQueue.dequeue
     RealTimeQueue.enqueueFront
-    (error "RealTimeQueue has no dequeueBack")
+    (error "Queue has no dequeueBack")
     RealTimeQueue.toList
     RealTimeQueue.fromList
 

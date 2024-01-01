@@ -21,19 +21,19 @@
 -- Performance comparison to other types:
 --
 --   +---+------------------------------+------------------+
---   |   | @RealTimeQueue@              |                  |
+--   |   | @Queue@                      |                  |
 --   +===+==============================+==================+
---   | ✔ | is @2.50x@ faster than       | @Seq@            |
---   +---+------------------------------+                  |
---   | ✔ | allocates @0.40x@ as much as |                  |
---   +---+------------------------------+------------------+
 --   | ✘ | is @2.50x@ slower than       | "EphemeralQueue" |
 --   +---+------------------------------+                  |
 --   | ✘ | allocates @2.10x@ as much as |                  |
 --   +---+------------------------------+------------------+
-module RealTimeQueue
+--   | ✔ | is @2.50x@ faster than       | @Seq@            |
+--   +---+------------------------------+                  |
+--   | ✔ | allocates @0.40x@ as much as |                  |
+--   +---+------------------------------+------------------+
+module Queue
   ( -- * Queue
-    RealTimeQueue (Empty, Front),
+    Queue (Empty, Front),
 
     -- ** Initialization
     empty,
@@ -69,7 +69,7 @@ import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (foldMap, length, map, span, traverse)
 
 -- | A queue data structure with \(\mathcal{O}(1)\) (worst-case) operations.
-data RealTimeQueue a
+data Queue a
   = Q
       -- The front of the queue.
       -- Invariant: length >= length of back
@@ -80,60 +80,60 @@ data RealTimeQueue a
       -- Invariant: length = length of front - length of back
       Schedule
 
-instance (Eq a) => Eq (RealTimeQueue a) where
-  (==) :: RealTimeQueue a -> RealTimeQueue a -> Bool
+instance (Eq a) => Eq (Queue a) where
+  (==) :: Queue a -> Queue a -> Bool
   xs == ys =
     toList xs == toList ys
 
-instance Foldable RealTimeQueue where
-  foldMap :: (Monoid m) => (a -> m) -> RealTimeQueue a -> m
+instance Foldable Queue where
+  foldMap :: (Monoid m) => (a -> m) -> Queue a -> m
   foldMap f (Q xs ys _) =
     Foldable.foldMap f xs <> listFoldMapBackwards f ys
 
-  elem :: (Eq a) => a -> RealTimeQueue a -> Bool
+  elem :: (Eq a) => a -> Queue a -> Bool
   elem x (Q xs ys _) =
     elem x xs || elem x ys
 
-  null :: RealTimeQueue a -> Bool
+  null :: Queue a -> Bool
   null =
     isEmpty
 
-  toList :: RealTimeQueue a -> [a]
+  toList :: Queue a -> [a]
   toList =
     toList
 
-instance Functor RealTimeQueue where
-  fmap :: (a -> b) -> RealTimeQueue a -> RealTimeQueue b
+instance Functor Queue where
+  fmap :: (a -> b) -> Queue a -> Queue b
   fmap =
     map
 
-instance Monoid (RealTimeQueue a) where
-  mempty :: RealTimeQueue a
+instance Monoid (Queue a) where
+  mempty :: Queue a
   mempty =
     empty
 
 -- | \(\mathcal{O}(n)\), where \(n\) is the size of the first argument.
-instance Semigroup (RealTimeQueue a) where
-  (<>) :: RealTimeQueue a -> RealTimeQueue a -> RealTimeQueue a
+instance Semigroup (Queue a) where
+  (<>) :: Queue a -> Queue a -> Queue a
   Empty <> ys = ys
   Front x xs <> ys = enqueue x (xs <> ys)
 
-instance (Show a) => Show (RealTimeQueue a) where
-  show :: RealTimeQueue a -> String
+instance (Show a) => Show (Queue a) where
+  show :: Queue a -> String
   show =
     show . toList
 
-instance Traversable RealTimeQueue where
-  traverse :: (Applicative f) => (a -> f b) -> RealTimeQueue a -> f (RealTimeQueue b)
+instance Traversable Queue where
+  traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
   traverse =
     traverse
 
 -- | An empty queue.
-pattern Empty :: RealTimeQueue a
+pattern Empty :: Queue a
 pattern Empty <- (dequeue -> Nothing)
 
 -- | The front of a queue, and the rest of it.
-pattern Front :: a -> RealTimeQueue a -> RealTimeQueue a
+pattern Front :: a -> Queue a -> Queue a
 pattern Front x xs <- (dequeue -> Just (x, xs))
 
 {-# COMPLETE Empty, Front #-}
@@ -141,7 +141,7 @@ pattern Front x xs <- (dequeue -> Just (x, xs))
 -- Queue smart constructor.
 --
 -- `queue xs ys zs` is always called when |zs| = |xs| - |ys| + 1 (i.e. just after a enqueue or dequeue)
-makeQueue :: [a] -> [a] -> Schedule -> RealTimeQueue a
+makeQueue :: [a] -> [a] -> Schedule -> Queue a
 makeQueue xs ys = \case
   NoMoreWorkToDo -> let xs1 = rotate ys [] xs in Q xs1 [] (schedule xs1)
   DidWork zs -> Q xs ys zs
@@ -155,32 +155,32 @@ rotate (NonEmptyList y ys) zs = \case
   x : xs -> x : rotate ys (y : zs) xs
 
 -- | An empty queue.
-empty :: RealTimeQueue a
+empty :: Queue a
 empty =
   Q [] [] NoMoreWorkToDo
 
 -- | A singleton queue.
-singleton :: a -> RealTimeQueue a
+singleton :: a -> Queue a
 singleton x =
   Q xs [] (schedule xs)
   where
     xs = [x]
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the back of a queue, to be dequeued last.
-enqueue :: a -> RealTimeQueue a -> RealTimeQueue a
+enqueue :: a -> Queue a -> Queue a
 enqueue y (Q xs ys zs) =
   makeQueue xs (y : ys) zs
 {-# INLINEABLE enqueue #-}
 
 -- | \(\mathcal{O}(1)\) front, \(\mathcal{O}(1)\) rest. Dequeue an element from the front of a queue.
-dequeue :: RealTimeQueue a -> Maybe (a, RealTimeQueue a)
+dequeue :: Queue a -> Maybe (a, Queue a)
 dequeue = \case
   Q [] _ _ -> Nothing
   Q (x : xs) ys zs -> Just (x, makeQueue xs ys zs)
 {-# INLINEABLE dequeue #-}
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the front of a queue, to be dequeued next.
-enqueueFront :: a -> RealTimeQueue a -> RealTimeQueue a
+enqueueFront :: a -> Queue a -> Queue a
 enqueueFront x (Q xs ys zs) =
   -- smart constructor not needed here
   -- we also add useless work to the schedule to maintain the convenient rotate-on-empty-schedule trigger
@@ -188,13 +188,13 @@ enqueueFront x (Q xs ys zs) =
 {-# INLINEABLE enqueueFront #-}
 
 -- | Dequeue elements from the front of a queue while a predicate is satisfied.
-dequeueWhile :: (a -> Bool) -> RealTimeQueue a -> ([a], RealTimeQueue a)
+dequeueWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
 dequeueWhile p queue0 =
   case span p empty queue0 of
     (queue1, queue2) -> (toList queue1, queue2)
 {-# INLINEABLE dequeueWhile #-}
 
-span :: (a -> Bool) -> RealTimeQueue a -> RealTimeQueue a -> (RealTimeQueue a, RealTimeQueue a)
+span :: (a -> Bool) -> Queue a -> Queue a -> (Queue a, Queue a)
 span p =
   go
   where
@@ -206,32 +206,32 @@ span p =
           | otherwise -> (acc, queue)
 
 -- | \(\mathcal{O}(1)\). Is a queue empty?
-isEmpty :: RealTimeQueue a -> Bool
+isEmpty :: Queue a -> Bool
 isEmpty = \case
   Q [] _ _ -> True
   _ -> False
 {-# INLINE isEmpty #-}
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
-map :: (a -> b) -> RealTimeQueue a -> RealTimeQueue b
+map :: (a -> b) -> Queue a -> Queue b
 map f =
   fromList . List.map f . toList
 {-# INLINEABLE map #-}
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
-traverse :: (Applicative f) => (a -> f b) -> RealTimeQueue a -> f (RealTimeQueue b)
+traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
 traverse f =
   fmap fromList . Traversable.traverse f . toList
 {-# INLINEABLE traverse #-}
 
 -- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
-fromList :: [a] -> RealTimeQueue a
+fromList :: [a] -> Queue a
 fromList xs =
   Q xs [] (schedule xs)
 {-# INLINE fromList #-}
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue. The head of the list corresponds to the front of the queue.
-toList :: RealTimeQueue a -> [a]
+toList :: Queue a -> [a]
 toList (Q xs ys _) =
   xs ++ List.reverse ys
 {-# INLINEABLE toList #-}
