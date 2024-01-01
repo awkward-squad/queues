@@ -5,14 +5,15 @@
 -}
 {-# LANGUAGE BangPatterns #-}
 
-module Main where
+module Main (main) where
 
 import Text.Printf (printf)
 
 main :: IO ()
 main = do
-  (ephemeralTime, ephemeralMem) <- readCsvs "ephemeral-queue" 5
-  (realTimeTime, realTimeMem) <- readCsvs "real-time-queue" 5
+  (ephemeralQueueTime, ephemeralQueueMem) <- readCsvs "ephemeral-queue" 5
+  (realTimeDequeTime, realTimeDequeMem) <- readCsvs "real-time-deque" 5
+  (realTimeQueueTime, realTimeQueueMem) <- readCsvs "real-time-queue" 5
   (sequenceTime, sequenceMem) <- readCsvs "sequence-queue" 5
 
   let speedup :: Double -> Double -> String
@@ -21,25 +22,24 @@ main = do
           then printf "%.2fx faster" (old / new)
           else printf "%.2fx slower" (1 / (old / new))
 
-  putStrLn "ephemeral queue is..."
-  printf "  %s than real-time queue\n" (speedup realTimeTime ephemeralTime)
-  printf "  %s than sequence queue\n" (speedup sequenceTime ephemeralTime)
-
-  putStrLn "real-time queue is..."
-  printf "  %s than ephemeral queue\n" (speedup ephemeralTime realTimeTime)
-  printf "  %s than sequence queue\n" (speedup sequenceTime realTimeTime)
-
   let allocImprovement :: Double -> Double -> String
       allocImprovement old new =
         printf "%.2fx" (new / old)
 
-  putStrLn "ephemeral queue allocates..."
-  printf "  %s as much as real-time queue\n" (allocImprovement realTimeMem ephemeralMem)
-  printf "  %s as much as sequence queue\n" (allocImprovement sequenceMem ephemeralMem)
+  putStrLn "ephemeral queue..."
+  printf "  is %s than and allocates %s as much as real-time deque\n" (speedup realTimeDequeTime ephemeralQueueTime) (allocImprovement realTimeDequeMem ephemeralQueueMem)
+  printf "  is %s than and allocates %s as much as real-time queue\n" (speedup realTimeQueueTime ephemeralQueueTime) (allocImprovement realTimeQueueMem ephemeralQueueMem)
+  printf "  is %s than and allocates %s as much as sequence queue\n" (speedup sequenceTime ephemeralQueueTime) (allocImprovement sequenceMem ephemeralQueueMem)
 
-  putStrLn "real-time queue allocates..."
-  printf "  %s as much as ephemeral queue\n" (allocImprovement ephemeralMem realTimeMem)
-  printf "  %s as much as sequence queue\n" (allocImprovement sequenceMem realTimeMem)
+  putStrLn "real-time deque..."
+  printf "  is %s than and allocates %s as much as ephemeral queue\n" (speedup ephemeralQueueTime realTimeDequeTime) (allocImprovement ephemeralQueueMem realTimeDequeMem)
+  printf "  is %s than and allocates %s as much as real-time queue\n" (speedup realTimeQueueTime realTimeDequeTime) (allocImprovement realTimeQueueMem realTimeDequeMem)
+  printf "  is %s than and allocates %s as much as sequence queue\n" (speedup sequenceTime realTimeDequeTime) (allocImprovement sequenceMem realTimeDequeMem)
+
+  putStrLn "real-time queue..."
+  printf "  is %s than and allocates %s as much as ephemeral queue\n" (speedup ephemeralQueueTime realTimeQueueTime) (allocImprovement ephemeralQueueMem realTimeQueueMem)
+  printf "  is %s than and allocates %s as much as real-time deque\n" (speedup realTimeDequeTime realTimeQueueTime) (allocImprovement realTimeDequeMem realTimeQueueMem)
+  printf "  is %s than and allocates %s as much as sequence queue\n" (speedup sequenceTime realTimeQueueTime) (allocImprovement sequenceMem realTimeQueueMem)
 
 readCsvs :: [Char] -> Int -> IO (Double, Double)
 readCsvs name =

@@ -7,6 +7,7 @@ mkdir -p bin
 cabal build --enable-benchmarks all
 
 ln -f -s $(cabal list-bin bench-ephemeral-queue) bin/bench-ephemeral-queue
+ln -f -s $(cabal list-bin bench-real-time-deque) bin/bench-real-time-deque
 ln -f -s $(cabal list-bin bench-real-time-queue) bin/bench-real-time-queue
 ln -f -s $(cabal list-bin bench-sequence-queue) bin/bench-sequence-queue
 
@@ -20,6 +21,13 @@ echo "Benchmarking ephemeral queue"
 ./bin/bench-ephemeral-queue --csv ephemeral-queue-3.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
 ./bin/bench-ephemeral-queue --csv ephemeral-queue-4.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
 ./bin/bench-ephemeral-queue --csv ephemeral-queue-5.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+
+echo "Benchmarking real time deque"
+./bin/bench-real-time-deque --csv real-time-deque-1.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-real-time-deque --csv real-time-deque-2.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-real-time-deque --csv real-time-deque-3.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-real-time-deque --csv real-time-deque-4.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-real-time-deque --csv real-time-deque-5.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
 
 echo "Benchmarking real time queue"
 ./bin/bench-real-time-queue --csv real-time-queue-1.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
