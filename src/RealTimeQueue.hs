@@ -61,9 +61,7 @@ module RealTimeQueue
 where
 
 import Data.Foldable qualified as Foldable
-import Data.Kind (Constraint)
 import GHC.Exts (Any)
-import GHC.TypeError qualified as TypeError
 import QueuesPrelude (NonEmptyList, listFoldMapBackwards, pattern NonEmptyList)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (foldMap, length, span)
@@ -102,17 +100,11 @@ instance Foldable RealTimeQueue where
   toList =
     toList
 
-type NoFunctorInstance :: Constraint
-type NoFunctorInstance =
-  TypeError.TypeError
-    ( 'TypeError.Text "The real-time queue does not admit a Functor instance."
-        'TypeError.:$$: 'TypeError.Text "Perhaps you would like to use the amortized queue instead?"
-    )
-
-instance (NoFunctorInstance) => Functor RealTimeQueue where
+instance Functor RealTimeQueue where
   fmap :: (a -> b) -> RealTimeQueue a -> RealTimeQueue b
-  fmap =
-    undefined
+  fmap f =
+    fromList . map f . toList
+  {-# INLINEABLE fmap #-}
 
 instance Monoid (RealTimeQueue a) where
   mempty :: RealTimeQueue a
@@ -211,13 +203,13 @@ isEmpty :: RealTimeQueue a -> Bool
 isEmpty = \case
   Q [] _ _ -> True
   _ -> False
-{-# INLINEABLE isEmpty #-}
+{-# INLINE isEmpty #-}
 
 -- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
 fromList :: [a] -> RealTimeQueue a
 fromList xs =
   Q xs [] (schedule xs)
-{-# INLINEABLE fromList #-}
+{-# INLINE fromList #-}
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue. The head of the list corresponds to the front of the queue.
 toList :: RealTimeQueue a -> [a]
