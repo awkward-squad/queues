@@ -1,12 +1,13 @@
 module Main (main) where
 
+import AmortizedQueue qualified
 import Data.Bifunctor (second)
 import Data.Foldable qualified as Foldable
 import Data.Function ((&))
 import Data.List qualified as List
 import Data.Sequence qualified as Seq
 import Data.Word (Word8)
-import EphemeralQueue qualified as EphemeralQueue
+import EphemeralQueue qualified
 import Hedgehog
   ( Gen,
     Group (Group),
@@ -21,7 +22,6 @@ import Hedgehog
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Main qualified as Hedgehog (defaultMain)
 import Hedgehog.Range qualified as Range
-import Queue qualified
 import RealTimeDeque qualified
 import RealTimeQueue qualified
 
@@ -79,13 +79,13 @@ data Iface a = forall queue.
 amortizedQueueIface :: Iface a
 amortizedQueueIface =
   Iface
-    Queue.empty
-    Queue.enqueue
-    Queue.dequeue
-    Queue.enqueueFront
-    (error "Queue has no dequeueBack")
-    Queue.toList
-    Queue.fromList
+    AmortizedQueue.empty
+    AmortizedQueue.enqueue
+    AmortizedQueue.dequeue
+    AmortizedQueue.enqueueFront
+    (error "AmortizedQueue has no dequeueBack")
+    AmortizedQueue.toList
+    AmortizedQueue.fromList
 
 realTimeQueueIface :: Iface a
 realTimeQueueIface =

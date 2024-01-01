@@ -25,9 +25,9 @@
 --   +===+==============================+==================+
 --   | ✔ | is @2.51x@ faster than       | @Seq@            |
 --   +---+------------------------------+                  |
---   | ✔ | allocates @0.39x@ as much as |                 |
+--   | ✔ | allocates @0.39x@ as much as |                  |
 --   +---+------------------------------+------------------+
---   | ✔ | is @1.85x@ faster than       | "Queue"          |
+--   | ✔ | is @1.85x@ faster than       | "AmortizedQueue" |
 --   +---+------------------------------+                  |
 --   | ✔ | allocates @0.65x@ as much as |                  |
 --   +---+------------------------------+------------------+
@@ -207,15 +207,13 @@ isEmpty = \case
   _ -> False
 {-# INLINEABLE isEmpty #-}
 
--- | \(\mathcal{O}(1)\). Construct a queue from a list, where the head of the list corresponds to the front of the
--- queue.
+-- | \(\mathcal{O}(1)\). Construct a queue from a list. the head of the list corresponds to the front of the queue.
 fromList :: [a] -> RealTimeQueue a
 fromList xs =
   Q xs [] (schedule xs)
 {-# INLINEABLE fromList #-}
 
--- | \(\mathcal{O}(n)\). Construct a list from a queue, where the head of the list corresponds to the front of the
--- queue.
+-- | \(\mathcal{O}(n)\). Construct a list from a queue. The head of the list corresponds to the front of the queue.
 toList :: RealTimeQueue a -> [a]
 toList (Q xs ys _) =
   xs ++ reverse ys

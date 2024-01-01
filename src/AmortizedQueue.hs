@@ -17,7 +17,7 @@
 -- Performance comparison to other types:
 --
 --   +---+------------------------------+------------------+
---   |   | @Queue@                      |                  |
+--   |   | @AmortizedQueue@             |                  |
 --   +===+==============================+==================+
 --   | ✔ | is @1.35x@ faster than       | @Seq@            |
 --   +---+------------------------------+                  |
@@ -31,9 +31,9 @@
 --   +---+------------------------------+                  |
 --   | ✘ | allocates @1.54x@ as much as |                  |
 --   +---+------------------------------+------------------+
-module Queue
-  ( -- * Queue
-    Queue (Empty, Front),
+module AmortizedQueue
+  ( -- * Amortized Queue
+    AmortizedQueue (Empty, Front),
 
     -- ** Initialization
     empty,
@@ -76,8 +76,8 @@ import Prelude hiding (foldMap, length, map, span, traverse)
 -- In various benchmarks I've put together, which should probably be included in this repo but aren't, (3) appears to be
 -- the fastest, so that's what we use.
 
--- | A queue data structure with \(\mathcal{O}(1)\) amortized enqueue and dequeue.
-data Queue a
+-- | A queue data structure with \(\mathcal{O}(1)^*\) enqueue and dequeue.
+data AmortizedQueue a
   = Q
       -- The head of the queue, e.g. [1,2,3]
       -- Invariant: empty iff queue is empty
@@ -93,122 +93,122 @@ data Queue a
       {-# UNPACK #-} !Int
   deriving stock (Functor)
 
-instance (Eq a) => Eq (Queue a) where
-  (==) :: Queue a -> Queue a -> Bool
+instance (Eq a) => Eq (AmortizedQueue a) where
+  (==) :: AmortizedQueue a -> AmortizedQueue a -> Bool
   xs == ys =
     length xs == length ys && toList xs == toList ys
 
-instance Foldable Queue where
-  foldMap :: (Monoid m) => (a -> m) -> Queue a -> m
+instance Foldable AmortizedQueue where
+  foldMap :: (Monoid m) => (a -> m) -> AmortizedQueue a -> m
   foldMap f (Q xs ms _ ys _) =
     Foldable.foldMap f xs <> Foldable.foldMap (Foldable.foldMap f) ms <> listFoldMapBackwards f ys
 
-  elem :: (Eq a) => a -> Queue a -> Bool
+  elem :: (Eq a) => a -> AmortizedQueue a -> Bool
   elem x (Q xs ms _ ys _) =
     elem x xs || any (elem x) ms || elem x ys
 
-  length :: Queue a -> Int
+  length :: AmortizedQueue a -> Int
   length =
     length
 
-  null :: Queue a -> Bool
+  null :: AmortizedQueue a -> Bool
   null =
     isEmpty
 
-  toList :: Queue a -> [a]
+  toList :: AmortizedQueue a -> [a]
   toList =
     toList
 
-instance Monoid (Queue a) where
-  mempty :: Queue a
+instance Monoid (AmortizedQueue a) where
+  mempty :: AmortizedQueue a
   mempty =
     empty
 
-  mappend :: Queue a -> Queue a -> Queue a
+  mappend :: AmortizedQueue a -> AmortizedQueue a -> AmortizedQueue a
   mappend =
     (<>)
 
 -- | \(\mathcal{O}(n)\), where \(n\) is the size of the smaller argument.
-instance Semigroup (Queue a) where
-  (<>) :: Queue a -> Queue a -> Queue a
+instance Semigroup (AmortizedQueue a) where
+  (<>) :: AmortizedQueue a -> AmortizedQueue a -> AmortizedQueue a
   xs <> ys
     -- Either enqueue xs onto the front of ys, or ys onto the back of xs, depending on which one would be fewer
     -- enqueues.
     | length xs < length ys = prepend xs ys
     | otherwise = append xs ys
 
-instance (Show a) => Show (Queue a) where
-  show :: Queue a -> String
+instance (Show a) => Show (AmortizedQueue a) where
+  show :: AmortizedQueue a -> String
   show =
     show . toList
 
-instance Traversable Queue where
-  traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
+instance Traversable AmortizedQueue where
+  traverse :: (Applicative f) => (a -> f b) -> AmortizedQueue a -> f (AmortizedQueue b)
   traverse =
     traverse
 
 -- | An empty queue.
-pattern Empty :: Queue a
+pattern Empty :: AmortizedQueue a
 pattern Empty <- (dequeue -> Nothing)
 
 -- | The front of a queue, and the rest of it.
-pattern Front :: a -> Queue a -> Queue a
+pattern Front :: a -> AmortizedQueue a -> AmortizedQueue a
 pattern Front x xs <- (dequeue -> Just (x, xs))
 
 {-# COMPLETE Empty, Front #-}
 
 -- Queue smart constructor.
-makeQueue :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> Queue a
+makeQueue :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> AmortizedQueue a
 makeQueue [] [] _ ys ylen = Q ys [] ylen [] 0
 makeQueue [] (m : ms) xlen ys ylen = makeQueue1 m ms xlen ys ylen
 makeQueue xs ms xlen ys ylen = makeQueue1 xs ms xlen ys ylen
 {-# INLINE makeQueue #-}
 
 -- Queue smart constructor.
-makeQueue1 :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> Queue a
+makeQueue1 :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> AmortizedQueue a
 makeQueue1 xs ms xlen ys ylen
   | ylen <= xlen = Q xs ms xlen ys ylen
   | otherwise = Q xs (ms ++ [reverse ys]) (xlen + ylen) [] 0
 {-# INLINE makeQueue1 #-}
 
 -- | An empty queue.
-empty :: Queue a
+empty :: AmortizedQueue a
 empty =
   Q [] [] 0 [] 0
 
 -- | A singleton queue.
-singleton :: a -> Queue a
+singleton :: a -> AmortizedQueue a
 singleton x =
   Q [x] [] 1 [] 0
 
--- | \(\mathcal{O}(1)\) amortized. Enqueue an element at the back of a queue, to be dequeued last.
-enqueue :: a -> Queue a -> Queue a
+-- | \(\mathcal{O}(1)^*\). Enqueue an element at the back of a queue, to be dequeued last.
+enqueue :: a -> AmortizedQueue a -> AmortizedQueue a
 enqueue y (Q xs ms xlen ys ylen) =
   makeQueue xs ms xlen (y : ys) (ylen + 1)
 {-# INLINEABLE enqueue #-}
 
--- | \(\mathcal{O}(1)\) amortized. Dequeue an element from the front of a queue.
-dequeue :: Queue a -> Maybe (a, Queue a)
+-- | \(\mathcal{O}(1)\) head, \(\mathcal{O}(1)^*\) tail. Dequeue an element from the front of a queue.
+dequeue :: AmortizedQueue a -> Maybe (a, AmortizedQueue a)
 dequeue = \case
   Q [] _ _ _ _ -> Nothing
   Q (x : xs) ms xlen ys ylen -> Just (x, makeQueue xs ms (xlen - 1) ys ylen)
 {-# INLINEABLE dequeue #-}
 
--- | \(\mathcal{O}(1)\) amortized. Enqueue an element at the front of a queue, to be dequeued next.
-enqueueFront :: a -> Queue a -> Queue a
+-- | \(\mathcal{O}(1)\). Enqueue an element at the front of a queue, to be dequeued next.
+enqueueFront :: a -> AmortizedQueue a -> AmortizedQueue a
 enqueueFront x (Q xs ms xlen ys ylen) =
   -- smart constructor not needed here
   Q (x : xs) ms (xlen + 1) ys ylen
 {-# INLINEABLE enqueueFront #-}
 
 -- | Dequeue elements from the front of a queue while a predicate is satisfied.
-dequeueWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
+dequeueWhile :: (a -> Bool) -> AmortizedQueue a -> ([a], AmortizedQueue a)
 dequeueWhile p queue0 =
   case span p empty queue0 of
     (queue1, queue2) -> (toList queue1, queue2)
 {-# INLINEABLE dequeueWhile #-}
 
-span :: (a -> Bool) -> Queue a -> Queue a -> (Queue a, Queue a)
+span :: (a -> Bool) -> AmortizedQueue a -> AmortizedQueue a -> (AmortizedQueue a, AmortizedQueue a)
 span p =
   go
   where
@@ -219,34 +219,34 @@ span p =
         | otherwise -> (acc, enqueueFront x xs)
 
 -- | \(\mathcal{O}(1)\). Is a queue empty?
-isEmpty :: Queue a -> Bool
+isEmpty :: AmortizedQueue a -> Bool
 isEmpty (Q _ _ xlen _ _) =
   xlen == 0
 {-# INLINEABLE isEmpty #-}
 
 -- | \(\mathcal{O}(1)\). How many elements are in a deque?
-length :: Queue a -> Int
+length :: AmortizedQueue a -> Int
 length (Q _ _ xlen _ ylen) =
   xlen + ylen
 {-# INLINEABLE length #-}
 
 -- @append xs ys@ enqueues @ys@ at the back of @ys@.
-append :: Queue a -> Queue a -> Queue a
+append :: AmortizedQueue a -> AmortizedQueue a -> AmortizedQueue a
 append xs Empty = xs
 append xs (Front y ys) = append (enqueue y xs) ys
 
 -- @prepend xs ys@ enqueues @xs@ at the front of @ys@.
-prepend :: Queue a -> Queue a -> Queue a
+prepend :: AmortizedQueue a -> AmortizedQueue a -> AmortizedQueue a
 prepend Empty ys = ys
 prepend (Front x xs) ys = enqueueFront x (prepend xs ys)
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
-map :: (a -> b) -> Queue a -> Queue b
+map :: (a -> b) -> AmortizedQueue a -> AmortizedQueue b
 map =
   fmap
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
-traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
+traverse :: (Applicative f) => (a -> f b) -> AmortizedQueue a -> f (AmortizedQueue b)
 traverse f (Q xs ms xlen ys ylen) =
   Q
     <$> Traversable.traverse f xs
@@ -263,16 +263,14 @@ traverse f (Q xs ms xlen ys ylen) =
           z : zs -> flip (:) <$> go zs <*> f z
 {-# INLINEABLE traverse #-}
 
--- | \(\mathcal{O}(n)\). Construct a queue from a list, where the head of the list corresponds to the front of the
--- queue.
-fromList :: [a] -> Queue a
+-- | \(\mathcal{O}(n)\). Construct a queue from a list. the head of the list corresponds to the front of the queue.
+fromList :: [a] -> AmortizedQueue a
 fromList xs =
   Q xs [] (List.length xs) [] 0
 {-# INLINEABLE fromList #-}
 
--- | \(\mathcal{O}(n)\). Construct a list from a queue, where the head of the list corresponds to the front of the
--- queue.
-toList :: Queue a -> [a]
+-- | \(\mathcal{O}(n)\). Construct a list from a queue. The head of the list corresponds to the front of the queue.
+toList :: AmortizedQueue a -> [a]
 toList (Q xs ms _ ys _) =
   xs ++ concat ms ++ reverse ys
 {-# INLINEABLE toList #-}

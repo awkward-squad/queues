@@ -11,14 +11,38 @@ ln -f -s $(cabal list-bin bench-ephemeral-queue) bin/bench-ephemeral-queue
 ln -f -s $(cabal list-bin bench-real-time-queue) bin/bench-real-time-queue
 ln -f -s $(cabal list-bin bench-sequence-queue) bin/bench-sequence-queue
 
-echo "Running bin/bench-bankers-queue"
-./bin/bench-bankers-queue --csv bankers-queue.csv --quiet --stdev 1
+# We don't like tasty-bench's "end benchmarking early" feature (when standard deviation falls below a configured value),
+# so we set it to an impossibly-low amount (0.01%), and set an explicit timeout (5s). This means every benchmark runs
+# for about 5 seconds, which (hopefully) will give us more consistent results.
 
-echo "Running bin/bench-ephemeral-queue"
-./bin/bench-ephemeral-queue --csv ephemeral-queue.csv --quiet --stdev 1
+echo "Benchmarking amortized queue"
+./bin/bench-bankers-queue --csv amortized-queue-1.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-bankers-queue --csv amortized-queue-2.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-bankers-queue --csv amortized-queue-3.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-bankers-queue --csv amortized-queue-4.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-bankers-queue --csv amortized-queue-5.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
 
-echo "Running bin/bench-real-time-queue"
-./bin/bench-real-time-queue --csv real-time-queue.csv --quiet --stdev 1
+echo "Benchmarking ephemeral queue"
+./bin/bench-ephemeral-queue --csv ephemeral-queue-1.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-ephemeral-queue --csv ephemeral-queue-2.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-ephemeral-queue --csv ephemeral-queue-3.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-ephemeral-queue --csv ephemeral-queue-4.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-ephemeral-queue --csv ephemeral-queue-5.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
 
-echo "Running bin/bench-sequence-queue"
-./bin/bench-sequence-queue --csv sequence-queue.csv --quiet --stdev 1
+echo "Benchmarking real time queue"
+./bin/bench-real-time-queue --csv real-time-queue-1.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-real-time-queue --csv real-time-queue-2.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-real-time-queue --csv real-time-queue-3.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-real-time-queue --csv real-time-queue-4.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-real-time-queue --csv real-time-queue-5.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+
+echo "Benchmarking sequence queue"
+./bin/bench-sequence-queue --csv sequence-queue-1.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-sequence-queue --csv sequence-queue-2.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-sequence-queue --csv sequence-queue-3.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-sequence-queue --csv sequence-queue-4.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+./bin/bench-sequence-queue --csv sequence-queue-5.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
+
+./scripts/print-benchmark-results.hs
+
+rm ./*queue*.csv
