@@ -11,6 +11,7 @@ import Text.Printf (printf)
 
 main :: IO ()
 main = do
+  (amortizedDequeTime, amortizedDequeMem) <- readCsvs "amortized-deque" 5
   (ephemeralQueueTime, ephemeralQueueMem) <- readCsvs "ephemeral-queue" 5
   (realTimeDequeTime, realTimeDequeMem) <- readCsvs "real-time-deque" 5
   (realTimeQueueTime, realTimeQueueMem) <- readCsvs "real-time-queue" 5
@@ -26,17 +27,26 @@ main = do
       allocImprovement old new =
         printf "%.2fx" (new / old)
 
+  putStrLn "amortized deque..."
+  printf "  is %s than and allocates %s as much as ephemeral queue\n" (speedup ephemeralQueueTime amortizedDequeTime) (allocImprovement ephemeralQueueMem amortizedDequeMem)
+  printf "  is %s than and allocates %s as much as real-time deque\n" (speedup realTimeDequeTime amortizedDequeTime) (allocImprovement realTimeDequeMem amortizedDequeMem)
+  printf "  is %s than and allocates %s as much as real-time queue\n" (speedup realTimeQueueTime amortizedDequeTime) (allocImprovement realTimeQueueMem amortizedDequeMem)
+  printf "  is %s than and allocates %s as much as sequence queue\n" (speedup sequenceTime amortizedDequeTime) (allocImprovement sequenceMem amortizedDequeMem)
+
   putStrLn "ephemeral queue..."
+  printf "  is %s than and allocates %s as much as amortized deque\n" (speedup amortizedDequeTime ephemeralQueueTime) (allocImprovement amortizedDequeMem ephemeralQueueMem)
   printf "  is %s than and allocates %s as much as real-time deque\n" (speedup realTimeDequeTime ephemeralQueueTime) (allocImprovement realTimeDequeMem ephemeralQueueMem)
   printf "  is %s than and allocates %s as much as real-time queue\n" (speedup realTimeQueueTime ephemeralQueueTime) (allocImprovement realTimeQueueMem ephemeralQueueMem)
   printf "  is %s than and allocates %s as much as sequence queue\n" (speedup sequenceTime ephemeralQueueTime) (allocImprovement sequenceMem ephemeralQueueMem)
 
   putStrLn "real-time deque..."
+  printf "  is %s than and allocates %s as much as amortized deque\n" (speedup amortizedDequeTime realTimeDequeTime) (allocImprovement amortizedDequeMem realTimeDequeMem)
   printf "  is %s than and allocates %s as much as ephemeral queue\n" (speedup ephemeralQueueTime realTimeDequeTime) (allocImprovement ephemeralQueueMem realTimeDequeMem)
   printf "  is %s than and allocates %s as much as real-time queue\n" (speedup realTimeQueueTime realTimeDequeTime) (allocImprovement realTimeQueueMem realTimeDequeMem)
   printf "  is %s than and allocates %s as much as sequence queue\n" (speedup sequenceTime realTimeDequeTime) (allocImprovement sequenceMem realTimeDequeMem)
 
   putStrLn "real-time queue..."
+  printf "  is %s than and allocates %s as much as amortized deque\n" (speedup amortizedDequeTime realTimeQueueTime) (allocImprovement amortizedDequeMem realTimeQueueMem)
   printf "  is %s than and allocates %s as much as ephemeral queue\n" (speedup ephemeralQueueTime realTimeQueueTime) (allocImprovement ephemeralQueueMem realTimeQueueMem)
   printf "  is %s than and allocates %s as much as real-time deque\n" (speedup realTimeDequeTime realTimeQueueTime) (allocImprovement realTimeDequeMem realTimeQueueMem)
   printf "  is %s than and allocates %s as much as sequence queue\n" (speedup sequenceTime realTimeQueueTime) (allocImprovement sequenceMem realTimeQueueMem)
