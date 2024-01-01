@@ -1,5 +1,6 @@
 module Main (main) where
 
+import AmortizedDeque qualified
 import Data.Bifunctor (second)
 import Data.Foldable qualified as Foldable
 import Data.Function ((&))
@@ -48,13 +49,14 @@ tests =
       do
         actions <- forAll (generateQueueActions 1000)
         let expected = applyQueueActions seqIface actions
-        applyQueueActions realTimeQueueIface actions === expected
         applyQueueActions ephemeralQueueIface actions === expected
+        applyQueueActions realTimeQueueIface actions === expected
     ),
     ( "`enqueue/enqueueFront/dequeue/dequeueBack state machine tests`",
       do
         actions <- forAll (generateDequeActions 1000)
         let expected = applyDequeActions seqIface actions
+        applyDequeActions amortizedDequeIface actions === expected
         applyDequeActions realTimeDequeIface actions === expected
     )
   ]
@@ -94,6 +96,17 @@ ephemeralQueueIface =
     (error "EphemeralQueue has no dequeueBack")
     EphemeralQueue.toList
     EphemeralQueue.fromList
+
+amortizedDequeIface :: Iface a
+amortizedDequeIface =
+  Iface
+    AmortizedDeque.empty
+    AmortizedDeque.enqueue
+    AmortizedDeque.dequeue
+    AmortizedDeque.enqueueFront
+    AmortizedDeque.dequeueBack
+    AmortizedDeque.toList
+    AmortizedDeque.fromList
 
 realTimeDequeIface :: Iface a
 realTimeDequeIface =
