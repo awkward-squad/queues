@@ -11,7 +11,6 @@ import Text.Printf (printf)
 
 main :: IO ()
 main = do
-  (amortizedTime, amortizedMem) <- readCsvs "amortized-queue" 5
   (ephemeralTime, ephemeralMem) <- readCsvs "ephemeral-queue" 5
   (realTimeTime, realTimeMem) <- readCsvs "real-time-queue" 5
   (sequenceTime, sequenceMem) <- readCsvs "sequence-queue" 5
@@ -22,18 +21,11 @@ main = do
           then printf "%.2fx faster" (old / new)
           else printf "%.2fx slower" (1 / (old / new))
 
-  putStrLn "amortized queue is..."
-  printf "  %s than ephemeral queue\n" (speedup ephemeralTime amortizedTime)
-  printf "  %s than real-time queue\n" (speedup realTimeTime amortizedTime)
-  printf "  %s than sequence queue\n" (speedup sequenceTime amortizedTime)
-
   putStrLn "ephemeral queue is..."
-  printf "  %s than amortized queue\n" (speedup amortizedTime ephemeralTime)
   printf "  %s than real-time queue\n" (speedup realTimeTime ephemeralTime)
   printf "  %s than sequence queue\n" (speedup sequenceTime ephemeralTime)
 
   putStrLn "real-time queue is..."
-  printf "  %s than amortized queue\n" (speedup amortizedTime realTimeTime)
   printf "  %s than ephemeral queue\n" (speedup ephemeralTime realTimeTime)
   printf "  %s than sequence queue\n" (speedup sequenceTime realTimeTime)
 
@@ -41,18 +33,11 @@ main = do
       allocImprovement old new =
         printf "%.2fx" (new / old)
 
-  putStrLn "amortized queue allocates..."
-  printf "  %s as much as ephemeral queue\n" (allocImprovement ephemeralMem amortizedMem)
-  printf "  %s as much as real-time queue\n" (allocImprovement realTimeMem amortizedMem)
-  printf "  %s as much as sequence queue\n" (allocImprovement sequenceMem amortizedMem)
-
   putStrLn "ephemeral queue allocates..."
-  printf "  %s as much as amortized queue\n" (allocImprovement amortizedMem ephemeralMem)
   printf "  %s as much as real-time queue\n" (allocImprovement realTimeMem ephemeralMem)
   printf "  %s as much as sequence queue\n" (allocImprovement sequenceMem ephemeralMem)
 
   putStrLn "real-time queue allocates..."
-  printf "  %s as much as amortized queue\n" (allocImprovement amortizedMem realTimeMem)
   printf "  %s as much as ephemeral queue\n" (allocImprovement ephemeralMem realTimeMem)
   printf "  %s as much as sequence queue\n" (allocImprovement sequenceMem realTimeMem)
 

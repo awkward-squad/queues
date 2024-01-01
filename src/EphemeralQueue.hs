@@ -1,21 +1,32 @@
--- |
+-- | A queue data structure with \(\mathcal{O}(1)^⧧\) (amortized under ephemeral usage only) operations, as described in
+--
+--   * Okasaki, Chris. \"Simple and efficient purely functional queues and deques.\" /Journal of functional programming/ 5.4 (1995): 583-592.
+--   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
+--
+-- A queue can be thought to have a \"back\" where new elements are enqueued, and a \"front\" where elements are
+-- dequeued in the order that they were enqueued.
+--
+-- This queue also supports a \"enqueue at front\" operation, because the underlying representation happens to trivially
+-- support it. (For a variant that also supports a \"dequeue from back\" operation, see "RealTimeDeque".
+--
+-- In this implementation, it is more helpful to think of the \"front\" being on the /left/, because (though the
+-- decision is arbitrary) we are consistent throughout, where it matters:
+--
+--   * List conversion functions associate the head of a list with the front of a queue.
+--   * The append operator @xs <> ys@ creates a queue with @xs@ in front of @ys@.
 --
 -- Performance comparison to other types:
 --
 --   +---+------------------------------+------------------+
 --   |   | @EphemeralQueue@             |                  |
 --   +===+==============================+==================+
---   | ✔ | is @6.37x@ faster than       | @Seq@            |
+--   | ✔ | is @6.30x@ faster than       | @Seq@            |
 --   +---+------------------------------+                  |
---   | ✔ | allocates @0.18x@ as much as |                  |
+--   | ✔ | allocates @0.20x@ as much as |                  |
 --   +---+------------------------------+------------------+
---   | ✔ | is @4.71x@ faster than       | "AmortizedQueue" |
+--   | ✔ | is @2.50x@ faster than       | "RealTimeQueue"  |
 --   +---+------------------------------+                  |
---   | ✔ | allocates @0.31x@ as much as |                  |
---   +---+------------------------------+------------------+
---   | ✔ | is @2.54x@ faster than       | "RealTimeQueue"  |
---   +---+------------------------------+                  |
---   | ✔ | allocates @0.47x@ as much as |                  |
+--   | ✔ | allocates @0.50x@ as much as |                  |
 --   +---+------------------------------+------------------+
 module EphemeralQueue
   ( -- * Queue
@@ -57,6 +68,7 @@ data EphemeralQueue a
 
 -- TODO
 instance Foldable EphemeralQueue where
+  foldMap :: (a -> m) -> EphemeralQueue a -> m
   foldMap = undefined
 
 instance Monoid (EphemeralQueue a) where

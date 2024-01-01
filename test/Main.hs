@@ -1,6 +1,5 @@
 module Main (main) where
 
-import AmortizedQueue qualified
 import Data.Bifunctor (second)
 import Data.Foldable qualified as Foldable
 import Data.Function ((&))
@@ -41,7 +40,6 @@ tests =
         let test :: (Eq a, Show a) => Iface a -> [a] -> PropertyT IO ()
             test Iface {toList, fromList} list = toList (fromList list) === list
         list <- forAll generateList
-        test amortizedQueueIface list
         test realTimeQueueIface list
         test ephemeralQueueIface list
         test realTimeDequeIface list
@@ -50,7 +48,6 @@ tests =
       do
         actions <- forAll (generateQueueActions 1000)
         let expected = applyQueueActions seqIface actions
-        applyQueueActions amortizedQueueIface actions === expected
         applyQueueActions realTimeQueueIface actions === expected
         applyQueueActions ephemeralQueueIface actions === expected
     ),
@@ -75,17 +72,6 @@ data Iface a = forall queue.
     toList :: queue a -> [a],
     fromList :: [a] -> queue a
   }
-
-amortizedQueueIface :: Iface a
-amortizedQueueIface =
-  Iface
-    AmortizedQueue.empty
-    AmortizedQueue.enqueue
-    AmortizedQueue.dequeue
-    AmortizedQueue.enqueueFront
-    (error "AmortizedQueue has no dequeueBack")
-    AmortizedQueue.toList
-    AmortizedQueue.fromList
 
 realTimeQueueIface :: Iface a
 realTimeQueueIface =

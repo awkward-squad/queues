@@ -6,7 +6,6 @@ mkdir -p bin
 
 cabal build --enable-benchmarks all
 
-ln -f -s $(cabal list-bin bench-bankers-queue) bin/bench-bankers-queue
 ln -f -s $(cabal list-bin bench-ephemeral-queue) bin/bench-ephemeral-queue
 ln -f -s $(cabal list-bin bench-real-time-queue) bin/bench-real-time-queue
 ln -f -s $(cabal list-bin bench-sequence-queue) bin/bench-sequence-queue
@@ -14,13 +13,6 @@ ln -f -s $(cabal list-bin bench-sequence-queue) bin/bench-sequence-queue
 # We don't like tasty-bench's "end benchmarking early" feature (when standard deviation falls below a configured value),
 # so we set it to an impossibly-low amount (0.01%), and set an explicit timeout (5s). This means every benchmark runs
 # for about 5 seconds, which (hopefully) will give us more consistent results.
-
-echo "Benchmarking amortized queue"
-./bin/bench-bankers-queue --csv amortized-queue-1.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
-./bin/bench-bankers-queue --csv amortized-queue-2.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
-./bin/bench-bankers-queue --csv amortized-queue-3.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
-./bin/bench-bankers-queue --csv amortized-queue-4.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
-./bin/bench-bankers-queue --csv amortized-queue-5.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
 
 echo "Benchmarking ephemeral queue"
 ./bin/bench-ephemeral-queue --csv ephemeral-queue-1.csv --quiet --stdev 0.01 --timeout 5 +RTS -A32m -N1 -T
