@@ -41,7 +41,7 @@ import QueuesPrelude (listFoldMapBackwards)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (foldMap, length, reverse)
 
--- | A double-ended queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue.
+-- | A double-ended queue data structure with \(\mathcal{O}(1)\) (worst-case) operations.
 data RealTimeDeque a
   = Q
       [a]
@@ -108,17 +108,17 @@ instance (Show a) => Show (RealTimeDeque a) where
           "yc = " ++ show (drop (ylen - Foldable.length yc) ys)
         ]
 
--- | An empty deque.
+-- | An empty double-ended queue.
 pattern Empty :: RealTimeDeque a
 pattern Empty <-
   (dequeue -> Nothing)
 
--- | The front of a deque, and the rest of it.
+-- | The front of a double-ended queue, and the rest of it.
 pattern Front :: a -> RealTimeDeque a -> RealTimeDeque a
 pattern Front x xs <-
   (dequeue -> Just (x, xs))
 
--- | The back of a deque, and the rest of it.
+-- | The back of a double-ended queue, and the rest of it.
 pattern Back :: RealTimeDeque a -> a -> RealTimeDeque a
 pattern Back xs x <-
   (dequeueBack -> Just (xs, x))
@@ -152,24 +152,24 @@ rotate2 :: [a] -> [a] -> [a] -> [a]
 rotate2 [] ys zs = List.reverse ys ++ zs
 rotate2 (x : xs) ys zs = x : rotate2 xs (drop 3 ys) (List.reverse (take 3 ys) ++ zs)
 
--- | An empty deque.
+-- | An empty double-ended queue.
 empty :: RealTimeDeque a
 empty =
   Q [] 0 [] [] 0 []
 
--- | \(\mathcal{O}(1)\). Enqueue an element at the back of a deque.
+-- | \(\mathcal{O}(1)\). Enqueue an element at the back of a double-ended queue.
 enqueue :: a -> RealTimeDeque a -> RealTimeDeque a
 enqueue y (Q xs xlen xc ys ylen yc) =
   makeDeque xs xlen (execute1 xc) (y : ys) (ylen + 1) (execute1 yc)
 {-# INLINEABLE enqueue #-}
 
--- | \(\mathcal{O}(1)\). Enqueue an element at the front of a deque.
+-- | \(\mathcal{O}(1)\). Enqueue an element at the front of a double-ended queue.
 enqueueFront :: a -> RealTimeDeque a -> RealTimeDeque a
 enqueueFront x (Q xs xlen xc ys ylen yc) =
   makeDeque (x : xs) (xlen + 1) (execute1 xc) ys ylen (execute1 yc)
 {-# INLINEABLE enqueueFront #-}
 
--- | \(\mathcal{O}(1)\). Dequeue an element from the front of a deque.
+-- | \(\mathcal{O}(1)\). Dequeue an element from the front of a double-ended queue.
 dequeue :: RealTimeDeque a -> Maybe (a, RealTimeDeque a)
 dequeue = \case
   Q [] _ _ [] _ _ -> Nothing
@@ -177,7 +177,7 @@ dequeue = \case
   Q (x : xs) xlen xc ys ylen yc -> Just (x, makeDeque xs (xlen - 1) (execute2 xc) ys ylen (execute2 yc))
 {-# INLINEABLE dequeue #-}
 
--- | \(\mathcal{O}(1)\). Dequeue an element from of the back of a deque.
+-- | \(\mathcal{O}(1)\). Dequeue an element from of the back of a double-ended queue.
 dequeueBack :: RealTimeDeque a -> Maybe (RealTimeDeque a, a)
 dequeueBack = \case
   Q [] _ _ [] _ _ -> Nothing
@@ -185,19 +185,19 @@ dequeueBack = \case
   Q xs xlen xc (y : ys) ylen yc -> Just (makeDeque xs xlen (execute2 xc) ys (ylen - 1) (execute2 yc), y)
 {-# INLINEABLE dequeueBack #-}
 
--- | \(\mathcal{O}(1)\). Is a deque empty?
+-- | \(\mathcal{O}(1)\). Is a double-ended queue empty?
 isEmpty :: RealTimeDeque a -> Bool
 isEmpty (Q _ xlen _ _ ylen _) =
   xlen == 0 && ylen == 0
 {-# INLINEABLE isEmpty #-}
 
--- | \(\mathcal{O}(1)\). How many elements are in a deque?
+-- | \(\mathcal{O}(1)\). How many elements are in a double-ended queue?
 length :: RealTimeDeque a -> Int
 length (Q _ xlen _ _ ylen _) =
   xlen + ylen
 {-# INLINEABLE length #-}
 
--- | \(\mathcal{O}(1)\). Reverse a deque.
+-- | \(\mathcal{O}(1)\). Reverse a double-ended queue.
 reverse :: RealTimeDeque a -> RealTimeDeque a
 reverse (Q xs xlen xc ys ylen yc) =
   Q ys ylen yc xs xlen xc
@@ -213,15 +213,15 @@ prepend :: RealTimeDeque a -> RealTimeDeque a -> RealTimeDeque a
 prepend Empty ys = ys
 prepend (Back xs x) ys = prepend xs (enqueueFront x ys)
 
--- | \(\mathcal{O}(n)\). Construct a deque from a list, where the head of the list corresponds to the front of the
--- deque.
+-- | \(\mathcal{O}(n)\). Construct a double-ended queue from a list. The head of the list corresponds to the front of
+-- the double-ended queue.
 fromList :: [a] -> RealTimeDeque a
 fromList =
   foldr enqueueFront empty
 {-# INLINEABLE fromList #-}
 
--- | \(\mathcal{O}(n)\). Construct a list from a deque, where the head of the list corresponds to the front of the
--- deque.
+-- | \(\mathcal{O}(n)\). Construct a list from a double-ended queue. The head of the list corresponds to the front of
+-- the double-ended queue.
 toList :: RealTimeDeque a -> [a]
 toList (Q xs _ _ ys _ _) =
   xs ++ List.reverse ys

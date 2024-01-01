@@ -50,6 +50,7 @@ import Data.Foldable qualified as Foldable
 import Data.Traversable qualified as Traversable
 import Prelude hiding (foldMap, length, map, span, traverse)
 
+-- | A queue data structure with \(\mathcal{O}(1)^⧧\) (amortized under ephemeral usage only) operations.
 data EphemeralQueue a
   = Q [a] [a]
   deriving stock (Eq, Functor)
@@ -63,6 +64,7 @@ instance Monoid (EphemeralQueue a) where
   mempty =
     empty
 
+-- | \(\mathcal{O}(n)\), where \(n\) is the size of the first argument.
 instance Semigroup (EphemeralQueue a) where
   (<>) :: EphemeralQueue a -> EphemeralQueue a -> EphemeralQueue a
   Empty <> ys = ys
@@ -103,7 +105,7 @@ enqueue y (Q xs ys) =
   Q xs (y : ys)
 {-# INLINEABLE enqueue #-}
 
--- | \(\mathcal{O}(1)^⧧\) head, \(\mathcal{O}(1)^⧧\) tail. Dequeue an element from the front of a queue.
+-- | \(\mathcal{O}(1)^⧧\) front, \(\mathcal{O}(1)^⧧\) rest. Dequeue an element from the front of a queue.
 dequeue :: EphemeralQueue a -> Maybe (a, EphemeralQueue a)
 dequeue = \case
   Q [] ys ->
@@ -163,7 +165,7 @@ traverse f (Q xs ys) =
           z : zs -> flip (:) <$> go zs <*> f z
 {-# INLINEABLE traverse #-}
 
--- | \(\mathcal{O}(1)\). Construct a queue from a list. the head of the list corresponds to the front of the queue.
+-- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
 fromList :: [a] -> EphemeralQueue a
 fromList xs =
   Q xs []

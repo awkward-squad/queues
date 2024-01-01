@@ -1,4 +1,4 @@
--- | A queue data structure with \(\mathcal{O}(1)\) amortized enqueue and dequeue, as described in
+-- | A queue data structure with \(\mathcal{O}(1)^*\) (amortized) operations, as described in
 --
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
 --
@@ -73,10 +73,10 @@ import Prelude hiding (foldMap, length, map, span, traverse)
 --   2. Bootstrapped banker's queue
 --   3. Not-exactly-bootstrapped banker's queue that just uses lists of rotations instead of a queue of rotations
 --
--- In various benchmarks I've put together, which should probably be included in this repo but aren't, (3) appears to be
+-- In various benchmarks we've put together, which should probably be included in this repo but aren't, (3) appears to be
 -- the fastest, so that's what we use.
 
--- | A queue data structure with \(\mathcal{O}(1)^*\) enqueue and dequeue.
+-- | A queue data structure with \(\mathcal{O}(1)^*\) (amortized) operations.
 data AmortizedQueue a
   = Q
       -- The head of the queue, e.g. [1,2,3]
@@ -187,7 +187,7 @@ enqueue y (Q xs ms xlen ys ylen) =
   makeQueue xs ms xlen (y : ys) (ylen + 1)
 {-# INLINEABLE enqueue #-}
 
--- | \(\mathcal{O}(1)\) head, \(\mathcal{O}(1)^*\) tail. Dequeue an element from the front of a queue.
+-- | \(\mathcal{O}(1)\) front, \(\mathcal{O}(1)^*\) rest. Dequeue an element from the front of a queue.
 dequeue :: AmortizedQueue a -> Maybe (a, AmortizedQueue a)
 dequeue = \case
   Q [] _ _ _ _ -> Nothing
@@ -224,7 +224,7 @@ isEmpty (Q _ _ xlen _ _) =
   xlen == 0
 {-# INLINEABLE isEmpty #-}
 
--- | \(\mathcal{O}(1)\). How many elements are in a deque?
+-- | \(\mathcal{O}(1)\). How many elements are in a queue?
 length :: AmortizedQueue a -> Int
 length (Q _ _ xlen _ ylen) =
   xlen + ylen
@@ -263,7 +263,7 @@ traverse f (Q xs ms xlen ys ylen) =
           z : zs -> flip (:) <$> go zs <*> f z
 {-# INLINEABLE traverse #-}
 
--- | \(\mathcal{O}(n)\). Construct a queue from a list. the head of the list corresponds to the front of the queue.
+-- | \(\mathcal{O}(n)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
 fromList :: [a] -> AmortizedQueue a
 fromList xs =
   Q xs [] (List.length xs) [] 0

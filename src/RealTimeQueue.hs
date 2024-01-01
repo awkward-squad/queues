@@ -1,7 +1,7 @@
 -- It seems this is only needed on GHC <= 9.4
 {-# LANGUAGE UndecidableInstances #-}
 
--- | A queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue, as described in
+-- | A queue data structure with \(\mathcal{O}(1)\) (worst-case) operations, as described in
 --
 --   * Okasaki, Chris. \"Simple and efficient purely functional queues and deques.\" /Journal of functional programming/ 5.4 (1995): 583-592.
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
@@ -68,7 +68,7 @@ import QueuesPrelude (NonEmptyList, listFoldMapBackwards, pattern NonEmptyList)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (foldMap, length, span)
 
--- | A queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue.
+-- | A queue data structure with \(\mathcal{O}(1)\) (worst-case) operations.
 data RealTimeQueue a
   = Q
       -- The front of the queue.
@@ -110,19 +110,25 @@ type NoFunctorInstance =
     )
 
 instance (NoFunctorInstance) => Functor RealTimeQueue where
-  fmap = undefined
+  fmap :: (a -> b) -> RealTimeQueue a -> RealTimeQueue b
+  fmap =
+    undefined
 
 instance Monoid (RealTimeQueue a) where
-  mempty = empty
-  mappend = (<>)
+  mempty :: RealTimeQueue a
+  mempty =
+    empty
 
 -- | \(\mathcal{O}(n)\), where \(n\) is the size of the first argument.
 instance Semigroup (RealTimeQueue a) where
+  (<>) :: RealTimeQueue a -> RealTimeQueue a -> RealTimeQueue a
   Empty <> ys = ys
   Front x xs <> ys = enqueue x (xs <> ys)
 
 instance (Show a) => Show (RealTimeQueue a) where
-  show = show . toList
+  show :: RealTimeQueue a -> String
+  show =
+    show . toList
 
 -- | An empty queue.
 pattern Empty :: RealTimeQueue a
@@ -168,7 +174,7 @@ enqueue y (Q xs ys zs) =
   makeQueue xs (y : ys) zs
 {-# INLINEABLE enqueue #-}
 
--- | \(\mathcal{O}(1)\). Dequeue an element from the front of a queue.
+-- | \(\mathcal{O}(1)\) front, \(\mathcal{O}(1)\) rest. Dequeue an element from the front of a queue.
 dequeue :: RealTimeQueue a -> Maybe (a, RealTimeQueue a)
 dequeue = \case
   Q [] _ _ -> Nothing
@@ -207,7 +213,7 @@ isEmpty = \case
   _ -> False
 {-# INLINEABLE isEmpty #-}
 
--- | \(\mathcal{O}(1)\). Construct a queue from a list. the head of the list corresponds to the front of the queue.
+-- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
 fromList :: [a] -> RealTimeQueue a
 fromList xs =
   Q xs [] (schedule xs)
