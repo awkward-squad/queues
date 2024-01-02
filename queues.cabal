@@ -162,7 +162,7 @@ benchmark bench-sequence-queue
   import: component
   build-depends:
     base,
-    containers ^>= 0.6.8 || ^>= 0.7,
+    containers ^>= 0.6.7 || ^>= 0.7,
     tasty-bench ^>= 0.3.5,
   ghc-options: -fproc-alignment=64 -rtsopts -threaded
   hs-source-dirs: bench/sequence-queue
