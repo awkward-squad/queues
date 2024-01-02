@@ -55,7 +55,6 @@ data RealTimeDeque a
 instance (Eq a) => Eq (RealTimeDeque a) where
   (==) :: RealTimeDeque a -> RealTimeDeque a -> Bool
   xs == ys =
-    -- FIXME make this faster
     length xs == length ys && toList xs == toList ys
 
 instance Foldable RealTimeDeque where

@@ -45,7 +45,6 @@ data AmortizedDeque a
 instance (Eq a) => Eq (AmortizedDeque a) where
   (==) :: AmortizedDeque a -> AmortizedDeque a -> Bool
   xs == ys =
-    -- FIXME make this faster
     length xs == length ys && toList xs == toList ys
 
 instance Foldable AmortizedDeque where
