@@ -99,7 +99,6 @@ library
     RealTimeDeque
   hs-source-dirs: src
   other-modules:
-    AmortizedQueue
     QueuesPrelude
 
 test-suite test
