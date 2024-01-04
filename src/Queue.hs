@@ -64,7 +64,7 @@ import Data.Foldable qualified as Foldable
 import Data.List qualified as List
 import Data.Traversable qualified as Traversable
 import GHC.Exts (Any)
-import QueuesPrelude (NonEmptyList, listFoldMapBackwards, pattern NonEmptyList)
+import QueuesPrelude (NonEmptyList, pattern NonEmptyList)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (foldMap, length, map, span, traverse)
 
@@ -87,8 +87,12 @@ instance (Eq a) => Eq (Queue a) where
 
 instance Foldable Queue where
   foldMap :: (Monoid m) => (a -> m) -> Queue a -> m
-  foldMap f (Q xs ys _) =
-    Foldable.foldMap f xs <> listFoldMapBackwards f ys
+  foldMap f =
+    go
+    where
+      go = \case
+        Empty -> mempty
+        Front x xs -> f x <> go xs
 
   elem :: (Eq a) => a -> Queue a -> Bool
   elem x (Q xs ys _) =
@@ -112,11 +116,11 @@ instance Monoid (Queue a) where
   mempty =
     empty
 
--- | \(\mathcal{O}(n)\), where \(n\) is the size of the first argument.
+-- | \(\mathcal{O}(n)\), where \(n\) is the size of the second argument.
 instance Semigroup (Queue a) where
   (<>) :: Queue a -> Queue a -> Queue a
-  Empty <> ys = ys
-  Front x xs <> ys = enqueue x (xs <> ys)
+  xs <> Empty = xs
+  xs <> Front y ys = enqueue y xs <> ys
 
 instance (Show a) => Show (Queue a) where
   show :: Queue a -> String
@@ -145,7 +149,6 @@ makeQueue :: [a] -> [a] -> Schedule -> Queue a
 makeQueue xs ys = \case
   NoMoreWorkToDo -> let xs1 = rotate ys [] xs in Q xs1 [] (schedule xs1)
   DidWork zs -> Q xs ys zs
-{-# INLINE makeQueue #-}
 
 -- rotate ys zs xs = xs ++ reverse ys ++ zs
 -- Precondition: |ys| = |xs| + 1
@@ -170,14 +173,12 @@ singleton x =
 enqueue :: a -> Queue a -> Queue a
 enqueue y (Q xs ys zs) =
   makeQueue xs (y : ys) zs
-{-# INLINEABLE enqueue #-}
 
 -- | \(\mathcal{O}(1)\) front, \(\mathcal{O}(1)\) rest. Dequeue an element from the front of a queue.
 dequeue :: Queue a -> Maybe (a, Queue a)
 dequeue = \case
   Q [] _ _ -> Nothing
   Q (x : xs) ys zs -> Just (x, makeQueue xs ys zs)
-{-# INLINEABLE dequeue #-}
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the front of a queue, to be dequeued next.
 enqueueFront :: a -> Queue a -> Queue a
@@ -185,14 +186,12 @@ enqueueFront x (Q xs ys zs) =
   -- smart constructor not needed here
   -- we also add useless work to the schedule to maintain the convenient rotate-on-empty-schedule trigger
   Q (x : xs) ys (delay x zs)
-{-# INLINEABLE enqueueFront #-}
 
 -- | Dequeue elements from the front of a queue while a predicate is satisfied.
 dequeueWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
 dequeueWhile p queue0 =
   case span p empty queue0 of
     (queue1, queue2) -> (toList queue1, queue2)
-{-# INLINEABLE dequeueWhile #-}
 
 span :: (a -> Bool) -> Queue a -> Queue a -> (Queue a, Queue a)
 span p =
@@ -210,31 +209,26 @@ isEmpty :: Queue a -> Bool
 isEmpty = \case
   Q [] _ _ -> True
   _ -> False
-{-# INLINE isEmpty #-}
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
 map :: (a -> b) -> Queue a -> Queue b
 map f =
   fromList . List.map f . toList
-{-# INLINEABLE map #-}
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
 traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
 traverse f =
   fmap fromList . Traversable.traverse f . toList
-{-# INLINEABLE traverse #-}
 
 -- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
 fromList :: [a] -> Queue a
 fromList xs =
   Q xs [] (schedule xs)
-{-# INLINE fromList #-}
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue. The head of the list corresponds to the front of the queue.
 toList :: Queue a -> [a]
 toList (Q xs ys _) =
   xs ++ List.reverse ys
-{-# INLINEABLE toList #-}
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Schedule utils
@@ -257,4 +251,3 @@ schedule =
 delay :: a -> Schedule -> Schedule
 delay x =
   (unsafeCoerce x :)
-{-# INLINE delay #-}

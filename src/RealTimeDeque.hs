@@ -140,7 +140,6 @@ makeDeque xs xlen xc ys ylen yc
   where
     xlen1 = (xlen + ylen) `unsafeShiftR` 1
     ylen1 = xlen + ylen - xlen1
-{-# INLINE makeDeque #-}
 
 rotate1 :: Int -> [a] -> [a] -> [a]
 rotate1 i (x : xs) ys | i >= 3 = x : rotate1 (i - 3) xs (List.drop 3 ys)
@@ -159,13 +158,11 @@ empty =
 enqueue :: a -> RealTimeDeque a -> RealTimeDeque a
 enqueue y (Q xs xlen xc ys ylen yc) =
   makeDeque xs xlen (execute1 xc) (y : ys) (ylen + 1) (execute1 yc)
-{-# INLINEABLE enqueue #-}
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the front of a double-ended queue.
 enqueueFront :: a -> RealTimeDeque a -> RealTimeDeque a
 enqueueFront x (Q xs xlen xc ys ylen yc) =
   makeDeque (x : xs) (xlen + 1) (execute1 xc) ys ylen (execute1 yc)
-{-# INLINEABLE enqueueFront #-}
 
 -- | \(\mathcal{O}(1)\) front, \(\mathcal{O}(1)\) rest. Dequeue an element from the front of a double-ended queue.
 dequeue :: RealTimeDeque a -> Maybe (a, RealTimeDeque a)
@@ -173,7 +170,6 @@ dequeue = \case
   Q [] _ _ [] _ _ -> Nothing
   Q [] _ _ (y : _) _ _ -> Just (y, empty)
   Q (x : xs) xlen xc ys ylen yc -> Just (x, makeDeque xs (xlen - 1) (execute2 xc) ys ylen (execute2 yc))
-{-# INLINEABLE dequeue #-}
 
 -- | \(\mathcal{O}(1)\) back, \(\mathcal{O}(1)\) rest. Dequeue an element from of the back of a double-ended queue.
 dequeueBack :: RealTimeDeque a -> Maybe (RealTimeDeque a, a)
@@ -181,25 +177,21 @@ dequeueBack = \case
   Q [] _ _ [] _ _ -> Nothing
   Q (x : _) _ _ [] _ _ -> Just (empty, x)
   Q xs xlen xc (y : ys) ylen yc -> Just (makeDeque xs xlen (execute2 xc) ys (ylen - 1) (execute2 yc), y)
-{-# INLINEABLE dequeueBack #-}
 
 -- | \(\mathcal{O}(1)\). Is a double-ended queue empty?
 isEmpty :: RealTimeDeque a -> Bool
 isEmpty (Q _ xlen _ _ ylen _) =
   xlen == 0 && ylen == 0
-{-# INLINEABLE isEmpty #-}
 
 -- | \(\mathcal{O}(1)\). How many elements are in a double-ended queue?
 length :: RealTimeDeque a -> Int
 length (Q _ xlen _ _ ylen _) =
   xlen + ylen
-{-# INLINEABLE length #-}
 
 -- | \(\mathcal{O}(1)\). Reverse a double-ended queue.
 reverse :: RealTimeDeque a -> RealTimeDeque a
 reverse (Q xs xlen xc ys ylen yc) =
   Q ys ylen yc xs xlen xc
-{-# INLINE reverse #-}
 
 -- O(ys). @append xs ys@ enqueues @ys@ onto the back of @ys@.
 append :: RealTimeDeque a -> RealTimeDeque a -> RealTimeDeque a
@@ -215,27 +207,23 @@ prepend (Back xs x) ys = prepend xs (enqueueFront x ys)
 map :: (a -> b) -> RealTimeDeque a -> RealTimeDeque b
 map f =
   fromList . List.map f . toList
-{-# INLINEABLE map #-}
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a double-ended queue.
 traverse :: (Applicative f) => (a -> f b) -> RealTimeDeque a -> f (RealTimeDeque b)
 traverse f =
   fmap fromList . Traversable.traverse f . toList
-{-# INLINEABLE traverse #-}
 
 -- | \(\mathcal{O}(n)\). Construct a double-ended queue from a list. The head of the list corresponds to the front of
 -- the double-ended queue.
 fromList :: [a] -> RealTimeDeque a
 fromList =
   foldr enqueueFront empty
-{-# INLINE fromList #-}
 
 -- | \(\mathcal{O}(n)\). Construct a list from a double-ended queue. The head of the list corresponds to the front of
 -- the double-ended queue.
 toList :: RealTimeDeque a -> [a]
 toList (Q xs _ _ ys _ _) =
   xs ++ List.reverse ys
-{-# INLINEABLE toList #-}
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Schedule utils
@@ -251,10 +239,8 @@ execute1 :: Schedule -> Schedule
 execute1 = \case
   [] -> []
   _ : xs -> xs
-{-# INLINE execute1 #-}
 
 execute2 :: Schedule -> Schedule
 execute2 = \case
   _ : _ : xs -> xs
   _ -> []
-{-# INLINE execute2 #-}

@@ -76,11 +76,10 @@ instance Monoid (EphemeralQueue a) where
   mempty =
     empty
 
--- | \(\mathcal{O}(n)\), where \(n\) is the size of the first argument.
+-- | \(\mathcal{O}(n)\), where \(n\) is the size of the second argument.
 instance Semigroup (EphemeralQueue a) where
   (<>) :: EphemeralQueue a -> EphemeralQueue a -> EphemeralQueue a
-  Empty <> ys = ys
-  Front x xs <> ys = enqueue x (xs <> ys)
+  Q as bs <> Q cs ds = Q as (ds ++ reverse cs ++ bs)
 
 instance (Show a) => Show (EphemeralQueue a) where
   show :: EphemeralQueue a -> String
@@ -115,7 +114,6 @@ singleton x =
 enqueue :: a -> EphemeralQueue a -> EphemeralQueue a
 enqueue y (Q xs ys) =
   Q xs (y : ys)
-{-# INLINEABLE enqueue #-}
 
 -- | \(\mathcal{O}(1)^⧧\) front, \(\mathcal{O}(1)^⧧\) rest. Dequeue an element from the front of a queue.
 dequeue :: EphemeralQueue a -> Maybe (a, EphemeralQueue a)
@@ -125,20 +123,17 @@ dequeue = \case
       [] -> Nothing
       x : xs -> Just (x, Q xs [])
   Q (x : xs) ys -> Just (x, Q xs ys)
-{-# INLINEABLE dequeue #-}
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the front of a queue, to be dequeued next.
 enqueueFront :: a -> EphemeralQueue a -> EphemeralQueue a
 enqueueFront x (Q xs ys) =
   Q (x : xs) ys
-{-# INLINEABLE enqueueFront #-}
 
 -- | Dequeue elements from the front of a queue while a predicate is satisfied.
 dequeueWhile :: (a -> Bool) -> EphemeralQueue a -> ([a], EphemeralQueue a)
 dequeueWhile p queue0 =
   case span p empty queue0 of
     (queue1, queue2) -> (toList queue1, queue2)
-{-# INLINEABLE dequeueWhile #-}
 
 span :: (a -> Bool) -> EphemeralQueue a -> EphemeralQueue a -> (EphemeralQueue a, EphemeralQueue a)
 span p =
@@ -155,7 +150,6 @@ isEmpty :: EphemeralQueue a -> Bool
 isEmpty = \case
   Q [] [] -> True
   _ -> False
-{-# INLINEABLE isEmpty #-}
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
 map :: (a -> b) -> EphemeralQueue a -> EphemeralQueue b
@@ -175,16 +169,13 @@ traverse f (Q xs ys) =
         go = \case
           [] -> pure []
           z : zs -> flip (:) <$> go zs <*> f z
-{-# INLINEABLE traverse #-}
 
 -- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
 fromList :: [a] -> EphemeralQueue a
 fromList xs =
   Q xs []
-{-# INLINEABLE fromList #-}
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue. The head of the list corresponds to the front of the queue.
 toList :: EphemeralQueue a -> [a]
 toList (Q xs ys) =
   xs ++ reverse ys
-{-# INLINEABLE toList #-}

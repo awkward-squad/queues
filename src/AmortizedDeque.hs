@@ -119,7 +119,6 @@ makeDeque xs xlen ys ylen
   where
     xlen1 = (xlen + ylen) `unsafeShiftR` 1
     ylen1 = xlen + ylen - xlen1
-{-# INLINE makeDeque #-}
 
 -- | An empty double-ended queue.
 empty :: AmortizedDeque a
@@ -130,13 +129,11 @@ empty =
 enqueue :: a -> AmortizedDeque a -> AmortizedDeque a
 enqueue y (Q xs xlen ys ylen) =
   makeDeque xs xlen (y : ys) (ylen + 1)
-{-# INLINEABLE enqueue #-}
 
 -- | \(\mathcal{O}(1)^*\). Enqueue an element at the front of a double-ended queue.
 enqueueFront :: a -> AmortizedDeque a -> AmortizedDeque a
 enqueueFront x (Q xs xlen ys ylen) =
   makeDeque (x : xs) (xlen + 1) ys ylen
-{-# INLINEABLE enqueueFront #-}
 
 -- | \(\mathcal{O}(1)\) front, \(\mathcal{O}(1)^*\) rest. Dequeue an element from the front of a double-ended queue.
 dequeue :: AmortizedDeque a -> Maybe (a, AmortizedDeque a)
@@ -144,7 +141,6 @@ dequeue = \case
   Q [] _ [] _ -> Nothing
   Q [] _ (y : _) _ -> Just (y, empty)
   Q (x : xs) xlen ys ylen -> Just (x, makeDeque xs (xlen - 1) ys ylen)
-{-# INLINEABLE dequeue #-}
 
 -- | \(\mathcal{O}(1)\) back, \(\mathcal{O}(1)^*\) rest. Dequeue an element from of the back of a double-ended queue.
 dequeueBack :: AmortizedDeque a -> Maybe (AmortizedDeque a, a)
@@ -152,25 +148,21 @@ dequeueBack = \case
   Q [] _ [] _ -> Nothing
   Q (x : _) _ [] _ -> Just (empty, x)
   Q xs xlen (y : ys) ylen -> Just (makeDeque xs xlen ys (ylen - 1), y)
-{-# INLINEABLE dequeueBack #-}
 
 -- | \(\mathcal{O}(1)\). Is a double-ended queue empty?
 isEmpty :: AmortizedDeque a -> Bool
 isEmpty (Q _ xlen _ ylen) =
   xlen == 0 && ylen == 0
-{-# INLINEABLE isEmpty #-}
 
 -- | \(\mathcal{O}(1)\). How many elements are in a double-ended queue?
 length :: AmortizedDeque a -> Int
 length (Q _ xlen _ ylen) =
   xlen + ylen
-{-# INLINEABLE length #-}
 
 -- | \(\mathcal{O}(1)\). Reverse a double-ended queue.
 reverse :: AmortizedDeque a -> AmortizedDeque a
 reverse (Q xs xlen ys ylen) =
   Q ys ylen xs xlen
-{-# INLINE reverse #-}
 
 append :: AmortizedDeque a -> AmortizedDeque a -> AmortizedDeque a
 append xs Empty = xs
@@ -196,18 +188,15 @@ traverse f (Q xs xlen ys ylen) =
         go = \case
           [] -> pure []
           z : zs -> flip (:) <$> go zs <*> f z
-{-# INLINEABLE traverse #-}
 
 -- | \(\mathcal{O}(n)\). Construct a double-ended queue from a list. The head of the list corresponds to the front of
 -- the double-ended queue.
 fromList :: [a] -> AmortizedDeque a
 fromList =
   foldr enqueueFront empty
-{-# INLINE fromList #-}
 
 -- | \(\mathcal{O}(n)\). Construct a list from a double-ended queue. The head of the list corresponds to the front of
 -- the double-ended queue.
 toList :: AmortizedDeque a -> [a]
 toList (Q xs _ ys _) =
   xs ++ List.reverse ys
-{-# INLINEABLE toList #-}

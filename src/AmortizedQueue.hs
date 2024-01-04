@@ -162,14 +162,12 @@ makeQueue :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> AmortizedQueue a
 makeQueue [] [] _ ys ylen = Q ys [] ylen [] 0
 makeQueue [] (m : ms) xlen ys ylen = makeQueue1 m ms xlen ys ylen
 makeQueue xs ms xlen ys ylen = makeQueue1 xs ms xlen ys ylen
-{-# INLINE makeQueue #-}
 
 -- Queue smart constructor.
 makeQueue1 :: [a] -> [NonEmptyList a] -> Int -> [a] -> Int -> AmortizedQueue a
 makeQueue1 xs ms xlen ys ylen
   | ylen <= xlen = Q xs ms xlen ys ylen
   | otherwise = Q xs (ms ++ [reverse ys]) (xlen + ylen) [] 0
-{-# INLINE makeQueue1 #-}
 
 -- | An empty queue.
 empty :: AmortizedQueue a
@@ -185,28 +183,24 @@ singleton x =
 enqueue :: a -> AmortizedQueue a -> AmortizedQueue a
 enqueue y (Q xs ms xlen ys ylen) =
   makeQueue xs ms xlen (y : ys) (ylen + 1)
-{-# INLINEABLE enqueue #-}
 
 -- | \(\mathcal{O}(1)\) front, \(\mathcal{O}(1)^*\) rest. Dequeue an element from the front of a queue.
 dequeue :: AmortizedQueue a -> Maybe (a, AmortizedQueue a)
 dequeue = \case
   Q [] _ _ _ _ -> Nothing
   Q (x : xs) ms xlen ys ylen -> Just (x, makeQueue xs ms (xlen - 1) ys ylen)
-{-# INLINEABLE dequeue #-}
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the front of a queue, to be dequeued next.
 enqueueFront :: a -> AmortizedQueue a -> AmortizedQueue a
 enqueueFront x (Q xs ms xlen ys ylen) =
   -- smart constructor not needed here
   Q (x : xs) ms (xlen + 1) ys ylen
-{-# INLINEABLE enqueueFront #-}
 
 -- | Dequeue elements from the front of a queue while a predicate is satisfied.
 dequeueWhile :: (a -> Bool) -> AmortizedQueue a -> ([a], AmortizedQueue a)
 dequeueWhile p queue0 =
   case span p empty queue0 of
     (queue1, queue2) -> (toList queue1, queue2)
-{-# INLINEABLE dequeueWhile #-}
 
 span :: (a -> Bool) -> AmortizedQueue a -> AmortizedQueue a -> (AmortizedQueue a, AmortizedQueue a)
 span p =
@@ -223,13 +217,11 @@ span p =
 isEmpty :: AmortizedQueue a -> Bool
 isEmpty (Q _ _ xlen _ _) =
   xlen == 0
-{-# INLINEABLE isEmpty #-}
 
 -- | \(\mathcal{O}(1)\). How many elements are in a queue?
 length :: AmortizedQueue a -> Int
 length (Q _ _ xlen _ ylen) =
   xlen + ylen
-{-# INLINEABLE length #-}
 
 -- @append xs ys@ enqueues @ys@ at the back of @ys@.
 append :: AmortizedQueue a -> AmortizedQueue a -> AmortizedQueue a
@@ -262,16 +254,13 @@ traverse f (Q xs ms xlen ys ylen) =
         go = \case
           [] -> pure []
           z : zs -> flip (:) <$> go zs <*> f z
-{-# INLINEABLE traverse #-}
 
 -- | \(\mathcal{O}(n)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
 fromList :: [a] -> AmortizedQueue a
 fromList xs =
   Q xs [] (List.length xs) [] 0
-{-# INLINEABLE fromList #-}
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue. The head of the list corresponds to the front of the queue.
 toList :: AmortizedQueue a -> [a]
 toList (Q xs ms _ ys _) =
   xs ++ concat ms ++ reverse ys
-{-# INLINEABLE toList #-}
