@@ -64,7 +64,6 @@ import Data.Foldable qualified as Foldable
 import Data.List qualified as List
 import Data.Traversable qualified as Traversable
 import GHC.Exts (Any)
-import QueuesPrelude (NonEmptyList, pattern NonEmptyList)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (foldMap, length, map, span, traverse)
 
@@ -251,3 +250,15 @@ schedule =
 delay :: a -> Schedule -> Schedule
 delay x =
   (unsafeCoerce x :)
+
+------------------------------------------------------------------------------------------------------------------------
+-- Non-empty list utils
+
+-- A list that we know is non-empty somehow.
+type NonEmptyList a =
+  [a]
+
+pattern NonEmptyList :: a -> [a] -> NonEmptyList a
+pattern NonEmptyList x xs = x : xs
+
+{-# COMPLETE NonEmptyList #-}
