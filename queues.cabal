@@ -93,13 +93,11 @@ library
   build-depends:
     base ^>= 4.17 || ^>= 4.18 || ^>= 4.19,
   exposed-modules:
-    AmortizedDeque
+    Deque
     EphemeralQueue
     Queue
     RealTimeDeque
   hs-source-dirs: src
-  other-modules:
-    QueuesPrelude
 
 test-suite test
   import: component

@@ -1,7 +1,7 @@
 -- It seems this is only needed on GHC <= 9.4
 {-# LANGUAGE UndecidableInstances #-}
 
--- | A double-ended queue data structure with \(\mathcal{O}(1)\) worst-case enqueue and dequeue, as described in
+-- | A double-ended queue data structure with \(\mathcal{O}(1)\) (worst-case) operations, as described in
 --
 --   * Okasaki, Chris. \"Simple and efficient purely functional queues and deques.\" /Journal of functional programming/ 5.4 (1995): 583-592.
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
@@ -38,7 +38,6 @@ import Data.Foldable qualified as Foldable
 import Data.List qualified as List
 import Data.Traversable qualified as Traversable
 import GHC.Exts (Any)
-import QueuesPrelude (listFoldMapBackwards)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (drop, foldMap, length, map, reverse, take, traverse)
 
@@ -59,8 +58,12 @@ instance (Eq a) => Eq (RealTimeDeque a) where
 
 instance Foldable RealTimeDeque where
   foldMap :: (Monoid m) => (a -> m) -> RealTimeDeque a -> m
-  foldMap f (Q xs _ _ ys _ _) =
-    Foldable.foldMap f xs <> listFoldMapBackwards f ys
+  foldMap f =
+    go
+    where
+      go = \case
+        Empty -> mempty
+        Front x xs -> f x <> go xs
 
   elem :: (Eq a) => a -> RealTimeDeque a -> Bool
   elem x (Q xs _ _ ys _ _) =

@@ -1,12 +1,13 @@
 module Main (main) where
 
-import AmortizedDeque qualified
 import Data.Bifunctor (second)
 import Data.Foldable qualified as Foldable
 import Data.Function ((&))
 import Data.List qualified as List
+import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
 import Data.Word (Word8)
+import Deque qualified
 import EphemeralQueue qualified
 import Hedgehog
   ( Gen,
@@ -99,14 +100,7 @@ ephemeralQueueIface =
 
 amortizedDequeIface :: Iface a
 amortizedDequeIface =
-  Iface
-    AmortizedDeque.empty
-    AmortizedDeque.enqueue
-    AmortizedDeque.dequeue
-    AmortizedDeque.enqueueFront
-    AmortizedDeque.dequeueBack
-    AmortizedDeque.toList
-    AmortizedDeque.fromList
+  Iface Deque.empty Deque.enqueue Deque.dequeue Deque.enqueueFront Deque.dequeueBack Deque.toList Deque.fromList
 
 realTimeDequeIface :: Iface a
 realTimeDequeIface =
@@ -121,20 +115,25 @@ realTimeDequeIface =
 
 seqIface :: Iface a
 seqIface =
-  Iface
-    Seq.empty
-    (\x xs -> xs Seq.|> x)
-    ( \case
-        Seq.Empty -> Nothing
-        x Seq.:<| xs -> Just (x, xs)
-    )
-    (Seq.<|)
-    ( \case
-        Seq.Empty -> Nothing
-        xs Seq.:|> x -> Just (xs, x)
-    )
-    Foldable.toList
-    Seq.fromList
+  Iface Seq.empty seqEnqueue seqDequeue seqEnqueueFront seqDequeueBack Foldable.toList Seq.fromList
+  where
+    seqEnqueue :: a -> Seq a -> Seq a
+    seqEnqueue =
+      flip (Seq.|>)
+
+    seqDequeue :: Seq a -> Maybe (a, Seq a)
+    seqDequeue = \case
+      Seq.Empty -> Nothing
+      x Seq.:<| xs -> Just (x, xs)
+
+    seqEnqueueFront :: a -> Seq a -> Seq a
+    seqEnqueueFront =
+      (Seq.<|)
+
+    seqDequeueBack :: Seq a -> Maybe (Seq a, a)
+    seqDequeueBack = \case
+      Seq.Empty -> Nothing
+      xs Seq.:|> x -> Just (xs, x)
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Generators
