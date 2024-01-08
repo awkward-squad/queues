@@ -82,7 +82,7 @@ data Queue a
 instance (Eq a) => Eq (Queue a) where
   (==) :: Queue a -> Queue a -> Bool
   xs == ys =
-    toList xs == toList ys
+    Queue.toList xs == Queue.toList ys
 
 instance Foldable Queue where
   foldMap :: (Monoid m) => (a -> m) -> Queue a -> m
@@ -95,7 +95,7 @@ instance Foldable Queue where
 
   elem :: (Eq a) => a -> Queue a -> Bool
   elem x (Q xs ys _) =
-    elem x xs || elem x ys
+    List.elem x xs || List.elem x ys
 
   null :: Queue a -> Bool
   null =
@@ -103,7 +103,7 @@ instance Foldable Queue where
 
   toList :: Queue a -> [a]
   toList =
-    toList
+    Queue.toList
 
 instance Functor Queue where
   fmap :: (a -> b) -> Queue a -> Queue b
@@ -129,7 +129,7 @@ instance (Show a) => Show (Queue a) where
 instance Traversable Queue where
   traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
   traverse =
-    traverse
+    Queue.traverse
 
 -- | An empty queue.
 pattern Empty :: Queue a

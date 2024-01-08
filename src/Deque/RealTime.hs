@@ -5,8 +5,8 @@
 --
 --   * Okasaki, Chris. \"Simple and efficient purely functional queues and deques.\" /Journal of functional programming/ 5.4 (1995): 583-592.
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
-module RealTimeDeque
-  ( -- * Deque
+module Deque.RealTime
+  ( -- * Real-time deque
     RealTimeDeque (Empty, Front, Back),
 
     -- ** Initialization
@@ -54,7 +54,8 @@ data RealTimeDeque a
 instance (Eq a) => Eq (RealTimeDeque a) where
   (==) :: RealTimeDeque a -> RealTimeDeque a -> Bool
   xs == ys =
-    length xs == length ys && toList xs == toList ys
+    Deque.RealTime.length xs == Deque.RealTime.length ys
+      && Deque.RealTime.toList xs == Deque.RealTime.toList ys
 
 instance Foldable RealTimeDeque where
   foldMap :: (Monoid m) => (a -> m) -> RealTimeDeque a -> m
@@ -71,7 +72,7 @@ instance Foldable RealTimeDeque where
 
   length :: RealTimeDeque a -> Int
   length =
-    RealTimeDeque.length
+    Deque.RealTime.length
 
   null :: RealTimeDeque a -> Bool
   null =
@@ -79,7 +80,7 @@ instance Foldable RealTimeDeque where
 
   toList :: RealTimeDeque a -> [a]
   toList =
-    RealTimeDeque.toList
+    Deque.RealTime.toList
 
 instance Functor RealTimeDeque where
   fmap :: (a -> b) -> RealTimeDeque a -> RealTimeDeque b
@@ -96,7 +97,7 @@ instance Semigroup (RealTimeDeque a) where
   (<>) :: RealTimeDeque a -> RealTimeDeque a -> RealTimeDeque a
   xs <> ys
     -- Either enqueue xs at the front of ys, or ys onto the back of xs, depending on which one would be fewer enqueues.
-    | length xs < length ys = prepend xs ys
+    | Deque.RealTime.length xs < Deque.RealTime.length ys = prepend xs ys
     | otherwise = append xs ys
 
 instance (Show a) => Show (RealTimeDeque a) where
@@ -107,7 +108,7 @@ instance (Show a) => Show (RealTimeDeque a) where
 instance Traversable RealTimeDeque where
   traverse :: (Applicative f) => (a -> f b) -> RealTimeDeque a -> f (RealTimeDeque b)
   traverse =
-    traverse
+    Deque.RealTime.traverse
 
 -- | An empty double-ended queue.
 pattern Empty :: RealTimeDeque a

@@ -24,7 +24,7 @@ import Hedgehog.Gen qualified as Gen
 import Hedgehog.Main qualified as Hedgehog (defaultMain)
 import Hedgehog.Range qualified as Range
 import Queue qualified
-import RealTimeDeque qualified
+import Deque.RealTime qualified
 
 main :: IO ()
 main = do
@@ -105,13 +105,13 @@ amortizedDequeIface =
 realTimeDequeIface :: Iface a
 realTimeDequeIface =
   Iface
-    RealTimeDeque.empty
-    RealTimeDeque.enqueue
-    RealTimeDeque.dequeue
-    RealTimeDeque.enqueueFront
-    RealTimeDeque.dequeueBack
-    RealTimeDeque.toList
-    RealTimeDeque.fromList
+    Deque.RealTime.empty
+    Deque.RealTime.enqueue
+    Deque.RealTime.dequeue
+    Deque.RealTime.enqueueFront
+    Deque.RealTime.dequeueBack
+    Deque.RealTime.toList
+    Deque.RealTime.fromList
 
 seqIface :: Iface a
 seqIface =
