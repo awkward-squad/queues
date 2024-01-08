@@ -8,7 +8,7 @@ import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
 import Data.Word (Word8)
 import Deque qualified
-import EphemeralQueue qualified
+import Queue.Ephemeral qualified
 import Hedgehog
   ( Gen,
     Group (Group),
@@ -90,13 +90,13 @@ realTimeQueueIface =
 ephemeralQueueIface :: Iface a
 ephemeralQueueIface =
   Iface
-    EphemeralQueue.empty
-    EphemeralQueue.enqueue
-    EphemeralQueue.dequeue
-    EphemeralQueue.enqueueFront
+    Queue.Ephemeral.empty
+    Queue.Ephemeral.enqueue
+    Queue.Ephemeral.dequeue
+    Queue.Ephemeral.enqueueFront
     (error "EphemeralQueue has no dequeueBack")
-    EphemeralQueue.toList
-    EphemeralQueue.fromList
+    Queue.Ephemeral.toList
+    Queue.Ephemeral.fromList
 
 amortizedDequeIface :: Iface a
 amortizedDequeIface =

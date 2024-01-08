@@ -28,7 +28,7 @@
 --   +---+------------------------------+         |
 --   | ✔ | allocates @0.20x@ as much as |         |
 --   +---+------------------------------+---------+
-module EphemeralQueue
+module Queue.Ephemeral
   ( -- * Ephemeral queue
     EphemeralQueue (Empty, Front),
 
