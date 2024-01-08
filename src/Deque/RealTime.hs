@@ -103,7 +103,7 @@ instance Semigroup (RealTimeDeque a) where
 instance (Show a) => Show (RealTimeDeque a) where
   show :: RealTimeDeque a -> String
   show =
-    show . toList
+    show . Deque.RealTime.toList
 
 instance Traversable RealTimeDeque where
   traverse :: (Applicative f) => (a -> f b) -> RealTimeDeque a -> f (RealTimeDeque b)

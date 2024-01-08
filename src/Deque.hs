@@ -48,7 +48,7 @@ data Deque a
 instance (Eq a) => Eq (Deque a) where
   (==) :: Deque a -> Deque a -> Bool
   xs == ys =
-    length xs == length ys && toList xs == toList ys
+    Deque.length xs == Deque.length ys && Deque.toList xs == Deque.toList ys
 
 instance Foldable Deque where
   foldMap :: (Monoid m) => (a -> m) -> Deque a -> m
@@ -85,18 +85,18 @@ instance Semigroup (Deque a) where
   (<>) :: Deque a -> Deque a -> Deque a
   xs <> ys
     -- Either enqueue xs at the front of ys, or ys onto the back of xs, depending on which one would be fewer enqueues.
-    | length xs < length ys = prepend xs ys
+    | Deque.length xs < Deque.length ys = prepend xs ys
     | otherwise = append xs ys
 
 instance (Show a) => Show (Deque a) where
   show :: Deque a -> String
   show =
-    show . toList
+    show . Deque.toList
 
 instance Traversable Deque where
   traverse :: (Applicative f) => (a -> f b) -> Deque a -> f (Deque b)
   traverse =
-    traverse
+    Deque.traverse
 
 -- | An empty double-ended queue.
 pattern Empty :: Deque a

@@ -71,7 +71,7 @@ import Prelude hiding (foldMap, length, map, span, traverse)
 data Queue a
   = Q
       -- The front of the queue.
-      -- Invariant: length >= length of back
+      -- Invariant: not shorter than the back
       [a]
       -- The back of the queue, in reverse order.
       [a]
@@ -124,7 +124,7 @@ instance Semigroup (Queue a) where
 instance (Show a) => Show (Queue a) where
   show :: Queue a -> String
   show =
-    show . toList
+    show . Queue.toList
 
 instance Traversable Queue where
   traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
