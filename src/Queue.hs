@@ -226,8 +226,8 @@ fromList xs =
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue. The head of the list corresponds to the front of the queue.
 toList :: Queue a -> [a]
-toList (Q xs ys _) =
-  xs ++ List.reverse ys
+toList =
+  List.unfoldr dequeue
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Schedule utils

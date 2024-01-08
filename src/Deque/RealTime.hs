@@ -226,8 +226,8 @@ fromList =
 -- | \(\mathcal{O}(n)\). Construct a list from a double-ended queue. The head of the list corresponds to the front of
 -- the double-ended queue.
 toList :: RealTimeDeque a -> [a]
-toList (Q xs _ _ ys _ _) =
-  xs ++ List.reverse ys
+toList =
+  List.unfoldr dequeue
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Schedule utils
