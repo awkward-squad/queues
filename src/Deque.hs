@@ -117,10 +117,17 @@ pattern Back xs x <-
 
 {-# COMPLETE Empty, Back #-}
 
--- Deque smart constructor.
-makeDeque :: [a] -> Int -> [a] -> Int -> Deque a
-makeDeque xs xlen ys ylen
-  | xlen > (3 * ylen + 1) = Q (List.take xlen1 xs) xlen1 (ys ++ List.reverse (List.drop xlen1 xs)) ylen1
+-- Deque smart constructor, to use when it is possible the front list is too long.
+makeDeque1 :: [a] -> Int -> [a] -> Int -> Deque a
+makeDeque1 xs xlen ys ylen
+  | xlen > (3 * ylen + 1) = Q (List.take xlen1 xs) xlen1 (ys ++ List.reverse (List.drop xlen1 xs)) (xlen + ylen - xlen1)
+  | otherwise = Q xs xlen ys ylen
+  where
+    xlen1 = (xlen + ylen) `unsafeShiftR` 1
+
+-- Deque smart constructor, to use when it is possible the back list is too long.
+makeDeque2 :: [a] -> Int -> [a] -> Int -> Deque a
+makeDeque2 xs xlen ys ylen
   | ylen > (3 * xlen + 1) = Q (xs ++ List.reverse (List.drop ylen1 ys)) xlen1 (List.take ylen1 ys) ylen1
   | otherwise = Q xs xlen ys ylen
   where
@@ -135,26 +142,26 @@ empty =
 -- | \(\mathcal{O}(1)^*\). Enqueue an element at the back of a double-ended queue.
 enqueue :: a -> Deque a -> Deque a
 enqueue y (Q xs xlen ys ylen) =
-  makeDeque xs xlen (y : ys) (ylen + 1)
+  makeDeque2 xs xlen (y : ys) (ylen + 1)
 
 -- | \(\mathcal{O}(1)^*\). Enqueue an element at the front of a double-ended queue.
 enqueueFront :: a -> Deque a -> Deque a
 enqueueFront x (Q xs xlen ys ylen) =
-  makeDeque (x : xs) (xlen + 1) ys ylen
+  makeDeque1 (x : xs) (xlen + 1) ys ylen
 
 -- | \(\mathcal{O}(1)\) front, \(\mathcal{O}(1)^*\) rest. Dequeue an element from the front of a double-ended queue.
 dequeue :: Deque a -> Maybe (a, Deque a)
 dequeue = \case
   Q [] _ [] _ -> Nothing
   Q [] _ (y : _) _ -> Just (y, empty)
-  Q (x : xs) xlen ys ylen -> Just (x, makeDeque xs (xlen - 1) ys ylen)
+  Q (x : xs) xlen ys ylen -> Just (x, makeDeque2 xs (xlen - 1) ys ylen)
 
 -- | \(\mathcal{O}(1)\) back, \(\mathcal{O}(1)^*\) rest. Dequeue an element from of the back of a double-ended queue.
 dequeueBack :: Deque a -> Maybe (Deque a, a)
 dequeueBack = \case
   Q [] _ [] _ -> Nothing
   Q (x : _) _ [] _ -> Just (empty, x)
-  Q xs xlen (y : ys) ylen -> Just (makeDeque xs xlen ys (ylen - 1), y)
+  Q xs xlen (y : ys) ylen -> Just (makeDeque1 xs xlen ys (ylen - 1), y)
 
 -- | \(\mathcal{O}(1)\). Is a double-ended queue empty?
 isEmpty :: Deque a -> Bool

@@ -129,13 +129,20 @@ pattern Back xs x <-
 
 {-# COMPLETE Empty, Back #-}
 
--- Deque smart constructor.
-makeDeque :: [a] -> Int -> [Any] -> [a] -> Int -> [Any] -> RealTimeDeque a
-makeDeque xs xlen xc ys ylen yc
+-- Deque smart constructor, to use when it is possible the front list is too long.
+makeDeque1 :: [a] -> Int -> [Any] -> [a] -> Int -> [Any] -> RealTimeDeque a
+makeDeque1 xs xlen xc ys ylen yc
   | xlen > (3 * ylen + 1) =
       let xs1 = List.take xlen1 xs
           ys1 = rotate1 xlen1 ys xs
-       in Q xs1 xlen1 (schedule xs1) ys1 ylen1 (schedule ys1)
+       in Q xs1 xlen1 (schedule xs1) ys1 (xlen + ylen - xlen1) (schedule ys1)
+  | otherwise = Q xs xlen xc ys ylen yc
+  where
+    xlen1 = (xlen + ylen) `unsafeShiftR` 1
+
+-- Deque smart constructor, to use when it is possible the back list is too long.
+makeDeque2 :: [a] -> Int -> [Any] -> [a] -> Int -> [Any] -> RealTimeDeque a
+makeDeque2 xs xlen xc ys ylen yc
   | ylen > (3 * xlen + 1) =
       let xs1 = rotate1 ylen1 xs ys
           ys1 = List.take ylen1 ys
@@ -147,11 +154,12 @@ makeDeque xs xlen xc ys ylen yc
 
 rotate1 :: Int -> [a] -> [a] -> [a]
 rotate1 i (x : xs) ys | i >= 3 = x : rotate1 (i - 3) xs (List.drop 3 ys)
-rotate1 i xs ys = rotate2 xs (List.drop i ys) []
+rotate1 i xs ys = rotate2 (List.drop i ys) [] xs
 
 rotate2 :: [a] -> [a] -> [a] -> [a]
-rotate2 [] ys zs = List.reverse ys ++ zs
-rotate2 (x : xs) ys zs = x : rotate2 xs (List.drop 3 ys) (List.reverse (List.take 3 ys) ++ zs)
+rotate2 ys zs = \case
+  [] -> List.reverse ys ++ zs
+  x : xs -> x : rotate2 (List.drop 3 ys) (List.reverse (List.take 3 ys) ++ zs) xs
 
 -- | An empty double-ended queue.
 empty :: RealTimeDeque a
@@ -161,26 +169,26 @@ empty =
 -- | \(\mathcal{O}(1)\). Enqueue an element at the back of a double-ended queue.
 enqueue :: a -> RealTimeDeque a -> RealTimeDeque a
 enqueue y (Q xs xlen xc ys ylen yc) =
-  makeDeque xs xlen (execute1 xc) (y : ys) (ylen + 1) (execute1 yc)
+  makeDeque2 xs xlen (execute1 xc) (y : ys) (ylen + 1) (execute1 yc)
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the front of a double-ended queue.
 enqueueFront :: a -> RealTimeDeque a -> RealTimeDeque a
 enqueueFront x (Q xs xlen xc ys ylen yc) =
-  makeDeque (x : xs) (xlen + 1) (execute1 xc) ys ylen (execute1 yc)
+  makeDeque1 (x : xs) (xlen + 1) (execute1 xc) ys ylen (execute1 yc)
 
 -- | \(\mathcal{O}(1)\) front, \(\mathcal{O}(1)\) rest. Dequeue an element from the front of a double-ended queue.
 dequeue :: RealTimeDeque a -> Maybe (a, RealTimeDeque a)
 dequeue = \case
   Q [] _ _ [] _ _ -> Nothing
   Q [] _ _ (y : _) _ _ -> Just (y, empty)
-  Q (x : xs) xlen xc ys ylen yc -> Just (x, makeDeque xs (xlen - 1) (execute2 xc) ys ylen (execute2 yc))
+  Q (x : xs) xlen xc ys ylen yc -> Just (x, makeDeque2 xs (xlen - 1) (execute2 xc) ys ylen (execute2 yc))
 
 -- | \(\mathcal{O}(1)\) back, \(\mathcal{O}(1)\) rest. Dequeue an element from of the back of a double-ended queue.
 dequeueBack :: RealTimeDeque a -> Maybe (RealTimeDeque a, a)
 dequeueBack = \case
   Q [] _ _ [] _ _ -> Nothing
   Q (x : _) _ _ [] _ _ -> Just (empty, x)
-  Q xs xlen xc (y : ys) ylen yc -> Just (makeDeque xs xlen (execute2 xc) ys (ylen - 1) (execute2 yc), y)
+  Q xs xlen xc (y : ys) ylen yc -> Just (makeDeque1 xs xlen (execute2 xc) ys (ylen - 1) (execute2 yc), y)
 
 -- | \(\mathcal{O}(1)\). Is a double-ended queue empty?
 isEmpty :: RealTimeDeque a -> Bool
