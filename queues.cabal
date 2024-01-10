@@ -10,17 +10,17 @@ license-file: LICENSE
 maintainer: Mitchell Rosen <mitchellwrosen@gmail.com>, Travis Staton <hello@travisstaton.com>
 name: queues
 stability: experimental
-synopsis: Queue and deque data structures.
+synopsis: Queue data structures.
 tested-with: GHC == 9.4.7, GHC == 9.6.3, GHC == 9.8.1
 version: 0.1.0
 
 description:
-  Queue and deque data structures, as described in
+  Queue data structures, as described in
   .
     * Okasaki, Chris. "Simple and efficient purely functional queues and deques." /Journal of functional programming/ 5.4 (1995): 583-592.
     * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
   .
-  This package provides two queue variants and one deque, whose salient API differences are summarized in the following table:
+  This package provides two queue variants, whose salient API differences are summarized in the following table:
   .
   +-----------------+----------------------+--------------------+
   |                 | @"EphemeralQueue"@   | @"Queue"@          |
@@ -29,13 +29,8 @@ description:
   +-----------------+----------------------+--------------------+
   | @dequeue@       | \(\mathcal{O}(1)^⧧\) | \(\mathcal{O}(1)\) |
   +-----------------+----------------------+--------------------+
-  | @length@        | \(\mathcal{O}(n)\)   | \(\mathcal{O}(n)\) |
-  +-----------------+----------------------+--------------------+
-  | @fromList@      | \(\mathcal{O}(1)\)   | \(\mathcal{O}(1)\) |
-  +-----------------+----------------------+--------------------+
   .
-    * \(^*\) Amortized.
-    * \(^⧧\) Amortized under ephemeral usage only.
+    * \(^*\) Amortized, under ephemeral usage only.
   .
   To see a rough performance comparison between the data structures, click into an individual module. Always benchmark
   your own code for accurate numbers.
@@ -93,8 +88,6 @@ library
   build-depends:
     base ^>= 4.17 || ^>= 4.18 || ^>= 4.19,
   exposed-modules:
-    Deque
-    Deque.RealTime
     Queue
     Queue.Ephemeral
   hs-source-dirs: src
@@ -111,17 +104,6 @@ test-suite test
   main-is: Main.hs
   type: exitcode-stdio-1.0
 
-benchmark bench-amortized-deque
-  import: component
-  build-depends:
-    base,
-    queues,
-    tasty-bench ^>= 0.3.5,
-  ghc-options: -fproc-alignment=64 -rtsopts -threaded
-  hs-source-dirs: bench/amortized-deque
-  main-is: Main.hs
-  type: exitcode-stdio-1.0
-
 benchmark bench-ephemeral-queue
   import: component
   build-depends:
@@ -130,17 +112,6 @@ benchmark bench-ephemeral-queue
     tasty-bench ^>= 0.3.5,
   ghc-options: -fproc-alignment=64 -rtsopts -threaded
   hs-source-dirs: bench/ephemeral-queue
-  main-is: Main.hs
-  type: exitcode-stdio-1.0
-
-benchmark bench-real-time-deque
-  import: component
-  build-depends:
-    base,
-    queues,
-    tasty-bench ^>= 0.3.5,
-  ghc-options: -fproc-alignment=64 -rtsopts -threaded
-  hs-source-dirs: bench/real-time-deque
   main-is: Main.hs
   type: exitcode-stdio-1.0
 

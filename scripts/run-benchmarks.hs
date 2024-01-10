@@ -20,9 +20,7 @@ import System.Process qualified as Process
 import Text.Printf (printf)
 
 data Results = Results
-  { amortizedDeque :: !Result,
-    ephemeralQueue :: !Result,
-    realTimeDeque :: !Result,
+  { ephemeralQueue :: !Result,
     realTimeQueue :: !Result,
     sequenceQueue :: !Result
   }
@@ -40,9 +38,7 @@ main :: IO ()
 main = do
   Process.callCommand "cabal build --enable-benchmarks all"
 
-  amortizedDequeBenchmark <- List.init <$> Process.readProcess "cabal" ["list-bin", "bench-amortized-deque"] ""
   ephemeralQueueBenchmark <- List.init <$> Process.readProcess "cabal" ["list-bin", "bench-ephemeral-queue"] ""
-  realTimeDequeBenchmark <- List.init <$> Process.readProcess "cabal" ["list-bin", "bench-real-time-deque"] ""
   realTimeQueueBenchmark <- List.init <$> Process.readProcess "cabal" ["list-bin", "bench-real-time-queue"] ""
   sequenceQueueBenchmark <- List.init <$> Process.readProcess "cabal" ["list-bin", "bench-sequence-queue"] ""
 
@@ -64,20 +60,10 @@ main = do
           ]
         readCsv "results.csv"
 
-  let runAmortizedDequeBenchmark :: Results -> IO Results
-      runAmortizedDequeBenchmark results = do
-        result <- runBenchmark amortizedDequeBenchmark
-        pure $! results {amortizedDeque = amortizedDeque results <> result}
-
   let runEphemeralQueueBenchmark :: Results -> IO Results
       runEphemeralQueueBenchmark results = do
         result <- runBenchmark ephemeralQueueBenchmark
         pure $! results {ephemeralQueue = ephemeralQueue results <> result}
-
-  let runRealTimeDequeBenchmark :: Results -> IO Results
-      runRealTimeDequeBenchmark results = do
-        result <- runBenchmark realTimeDequeBenchmark
-        pure $! results {realTimeDeque = realTimeDeque results <> result}
 
   let runRealTimeQueueBenchmark :: Results -> IO Results
       runRealTimeQueueBenchmark results = do
@@ -92,9 +78,7 @@ main = do
   let runBenchmarks :: [Results -> IO Results]
       runBenchmarks =
         cycle
-          [ runAmortizedDequeBenchmark,
-            runEphemeralQueueBenchmark,
-            runRealTimeDequeBenchmark,
+          [ runEphemeralQueueBenchmark,
             runRealTimeQueueBenchmark,
             runSequenceQueueBenchmark
           ]
@@ -104,21 +88,17 @@ main = do
         renderResults results1
         go results1 benches
 
-  go (Results mempty mempty mempty mempty mempty) runBenchmarks
+  go (Results mempty mempty mempty) runBenchmarks
 
 renderResults :: Results -> IO ()
 renderResults
   Results
-    { amortizedDeque = Result amortizedDequeRuns amortizedDequeTime0 amortizedDequeMem0,
-      ephemeralQueue = Result ephemeralQueueRuns ephemeralQueueTime0 ephemeralQueueMem0,
-      realTimeDeque = Result realTimeDequeRuns realTimeDequeTime0 realTimeDequeMem0,
+    { ephemeralQueue = Result ephemeralQueueRuns ephemeralQueueTime0 ephemeralQueueMem0,
       realTimeQueue = Result realTimeQueueRuns realTimeQueueTime0 realTimeQueueMem0,
       sequenceQueue = Result sequenceQueueRuns sequenceQueueTime0 sequenceQueueMem0
     } = do
-    let amortizedDequeInfo, ephemeralQueueInfo, realTimeDequeInfo, realTimeQueueInfo, sequenceQueueInfo :: (Text.Builder, Double, Double, Double)
-        amortizedDequeInfo = ("Deque", amortizedDequeRuns, amortizedDequeTime0 / amortizedDequeRuns, amortizedDequeMem0 / amortizedDequeRuns)
+    let ephemeralQueueInfo, realTimeQueueInfo, sequenceQueueInfo :: (Text.Builder, Double, Double, Double)
         ephemeralQueueInfo = ("Queue.Ephemeral", ephemeralQueueRuns, ephemeralQueueTime0 / ephemeralQueueRuns, ephemeralQueueMem0 / ephemeralQueueRuns)
-        realTimeDequeInfo = ("Deque.RealTime", realTimeDequeRuns, realTimeDequeTime0 / realTimeDequeRuns, realTimeDequeMem0 / realTimeDequeRuns)
         realTimeQueueInfo = ("Queue", realTimeQueueRuns, realTimeQueueTime0 / realTimeQueueRuns, realTimeQueueMem0 / realTimeQueueRuns)
         sequenceQueueInfo = ("Seq", sequenceQueueRuns, sequenceQueueTime0 / sequenceQueueRuns, sequenceQueueMem0 / sequenceQueueRuns)
 
@@ -138,27 +118,11 @@ renderResults
     (ByteString.putStr . Text.Builder.runBuilderBS) $
       Text.Builder.fromText (Text.replicate 80 "=")
         <> newline
-        <> renderComparison ephemeralQueueInfo amortizedDequeInfo
-        <> renderComparison realTimeDequeInfo amortizedDequeInfo
-        <> renderComparison realTimeQueueInfo amortizedDequeInfo
-        <> renderComparison sequenceQueueInfo amortizedDequeInfo
-        <> Text.Builder.fromText (Text.replicate 40 "-")
-        <> newline
-        <> renderComparison amortizedDequeInfo ephemeralQueueInfo
-        <> renderComparison realTimeDequeInfo ephemeralQueueInfo
         <> renderComparison realTimeQueueInfo ephemeralQueueInfo
         <> renderComparison sequenceQueueInfo ephemeralQueueInfo
         <> Text.Builder.fromText (Text.replicate 40 "-")
         <> newline
-        <> renderComparison amortizedDequeInfo realTimeDequeInfo
-        <> renderComparison ephemeralQueueInfo realTimeDequeInfo
-        <> renderComparison realTimeQueueInfo realTimeDequeInfo
-        <> renderComparison sequenceQueueInfo realTimeDequeInfo
-        <> Text.Builder.fromText (Text.replicate 40 "-")
-        <> newline
-        <> renderComparison amortizedDequeInfo realTimeQueueInfo
         <> renderComparison ephemeralQueueInfo realTimeQueueInfo
-        <> renderComparison realTimeDequeInfo realTimeQueueInfo
         <> renderComparison sequenceQueueInfo realTimeQueueInfo
     where
       newline = Text.Builder.fromChar '\n'
