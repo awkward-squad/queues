@@ -26,7 +26,7 @@ data Results = Results
   }
 
 data Result
-  = Result {-# UNPACK #-} !Double {-# UNPACK #-} !Double {-# UNPACK #-} !Double
+  = Result {-# UNPACK #-} !Int {-# UNPACK #-} !Double {-# UNPACK #-} !Double
 
 instance Monoid Result where
   mempty = Result 0 0 0
@@ -50,9 +50,7 @@ main = do
             "results.csv",
             "--quiet",
             "--stdev",
-            "0.01",
-            "--timeout",
-            "3",
+            "2",
             "+RTS",
             "-A32m",
             "-N1",
@@ -97,10 +95,10 @@ renderResults
       realTimeQueue = Result realTimeQueueRuns realTimeQueueTime0 realTimeQueueMem0,
       sequenceQueue = Result sequenceQueueRuns sequenceQueueTime0 sequenceQueueMem0
     } = do
-    let ephemeralQueueInfo, realTimeQueueInfo, sequenceQueueInfo :: (Text.Builder, Double, Double, Double)
-        ephemeralQueueInfo = ("Queue.Ephemeral", ephemeralQueueRuns, ephemeralQueueTime0 / ephemeralQueueRuns, ephemeralQueueMem0 / ephemeralQueueRuns)
-        realTimeQueueInfo = ("Queue", realTimeQueueRuns, realTimeQueueTime0 / realTimeQueueRuns, realTimeQueueMem0 / realTimeQueueRuns)
-        sequenceQueueInfo = ("Seq", sequenceQueueRuns, sequenceQueueTime0 / sequenceQueueRuns, sequenceQueueMem0 / sequenceQueueRuns)
+    let ephemeralQueueInfo, realTimeQueueInfo, sequenceQueueInfo :: (Text.Builder, Int, Double, Double)
+        ephemeralQueueInfo = ("Queue.Ephemeral", ephemeralQueueRuns, ephemeralQueueTime0 / fromIntegral ephemeralQueueRuns, ephemeralQueueMem0 / fromIntegral ephemeralQueueRuns)
+        realTimeQueueInfo = ("Queue", realTimeQueueRuns, realTimeQueueTime0 / fromIntegral realTimeQueueRuns, realTimeQueueMem0 / fromIntegral realTimeQueueRuns)
+        sequenceQueueInfo = ("Seq", sequenceQueueRuns, sequenceQueueTime0 / fromIntegral sequenceQueueRuns, sequenceQueueMem0 / fromIntegral sequenceQueueRuns)
 
     let renderComparison (name1, runs1, time1, mem1) (name2, runs2, time2, mem2) =
           if runs1 == 0 || runs2 == 0
@@ -116,7 +114,17 @@ renderResults
                 <> newline
 
     (ByteString.putStr . Text.Builder.runBuilderBS) $
-      Text.Builder.fromText (Text.replicate 80 "=")
+      "\ESC[2J"
+        <> "Ephemeral queue benchmark runs: "
+        <> Text.Builder.fromDec ephemeralQueueRuns
+        <> newline
+        <> "Real-time queue benchmark runs: "
+        <> Text.Builder.fromDec realTimeQueueRuns
+        <> newline
+        <> "Sequence benchmark runs: "
+        <> Text.Builder.fromDec sequenceQueueRuns
+        <> newline
+        <> Text.Builder.fromText (Text.replicate 40 "-")
         <> newline
         <> renderComparison realTimeQueueInfo ephemeralQueueInfo
         <> renderComparison sequenceQueueInfo ephemeralQueueInfo
