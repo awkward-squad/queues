@@ -17,7 +17,6 @@ module Queue.Ephemeral
 
     -- ** Extended interface
     enqueueFront,
-    dequeueWhile,
 
     -- * Queries
     isEmpty,
@@ -144,22 +143,6 @@ dequeue = \case
 enqueueFront :: a -> EphemeralQueue a -> EphemeralQueue a
 enqueueFront x (Q xs ys) =
   Q (x : xs) ys
-
--- | Dequeue elements from the front of a queue while a predicate is satisfied.
-dequeueWhile :: (a -> Bool) -> EphemeralQueue a -> ([a], EphemeralQueue a)
-dequeueWhile p queue0 =
-  case span p empty queue0 of
-    (queue1, queue2) -> (toList queue1, queue2)
-
-span :: (a -> Bool) -> EphemeralQueue a -> EphemeralQueue a -> (EphemeralQueue a, EphemeralQueue a)
-span p =
-  go
-  where
-    go acc = \case
-      Empty -> (acc, empty)
-      Front x xs
-        | p x -> go (enqueue x acc) xs
-        | otherwise -> (acc, enqueueFront x xs)
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Queries

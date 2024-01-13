@@ -17,7 +17,6 @@ module Queue
 
     -- ** Extended interface
     enqueueFront,
-    dequeueWhile,
 
     -- * Queries
     isEmpty,
@@ -173,23 +172,6 @@ enqueueFront x (Q xs ys zs) =
   -- smart constructor not needed here
   -- we also add useless work to the schedule to maintain the convenient rotate-on-empty-schedule trigger
   Q (x : xs) ys (delay x zs)
-
--- | Dequeue elements from the front of a queue while a predicate is satisfied.
-dequeueWhile :: (a -> Bool) -> Queue a -> ([a], Queue a)
-dequeueWhile p queue0 =
-  case span p empty queue0 of
-    (queue1, queue2) -> (toList queue1, queue2)
-
-span :: (a -> Bool) -> Queue a -> Queue a -> (Queue a, Queue a)
-span p =
-  go
-  where
-    go acc queue =
-      case queue of
-        Empty -> (acc, empty)
-        Front x xs
-          | p x -> go (enqueue x acc) xs
-          | otherwise -> (acc, queue)
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Queries
