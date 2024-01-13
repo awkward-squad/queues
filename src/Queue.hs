@@ -35,6 +35,7 @@ module Queue
     -- ** Initialization
     empty,
     singleton,
+    fromList,
 
     -- * Basic interface
     enqueue,
@@ -51,8 +52,7 @@ module Queue
     map,
     traverse,
 
-    -- * List conversions
-    fromList,
+    -- * Conversions
     toList,
   )
 where
@@ -63,6 +63,9 @@ import Data.Traversable qualified as Traversable
 import GHC.Exts (Any)
 import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (foldMap, length, map, span, traverse)
+
+------------------------------------------------------------------------------------------------------------------------
+-- Queue type and instances
 
 -- | A queue data structure with \(\mathcal{O}(1)\) (worst-case) operations.
 data Queue a
@@ -128,6 +131,9 @@ instance Traversable Queue where
   traverse =
     Queue.traverse
 
+------------------------------------------------------------------------------------------------------------------------
+-- Patterns
+
 -- | An empty queue.
 pattern Empty :: Queue a
 pattern Empty <- (dequeue -> Nothing)
@@ -138,8 +144,9 @@ pattern Front x xs <- (dequeue -> Just (x, xs))
 
 {-# COMPLETE Empty, Front #-}
 
--- Queue smart constructor.
---
+------------------------------------------------------------------------------------------------------------------------
+-- Internal smart constructor utils
+
 -- `queue xs ys zs` is always called when |zs| = |xs| - |ys| + 1 (i.e. just after a enqueue or dequeue)
 makeQueue :: [a] -> [a] -> Schedule -> Queue a
 makeQueue xs ys = \case
@@ -153,6 +160,9 @@ rotate (NonEmptyList y ys) zs = \case
   [] -> y : zs
   x : xs -> x : rotate ys (y : zs) xs
 
+------------------------------------------------------------------------------------------------------------------------
+-- Initialization
+
 -- | An empty queue.
 empty :: Queue a
 empty =
@@ -165,6 +175,14 @@ singleton x =
   where
     xs = [x]
 
+-- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
+fromList :: [a] -> Queue a
+fromList xs =
+  Q xs [] (schedule xs)
+
+------------------------------------------------------------------------------------------------------------------------
+-- Basic interface
+
 -- | \(\mathcal{O}(1)\). Enqueue an element at the back of a queue, to be dequeued last.
 enqueue :: a -> Queue a -> Queue a
 enqueue y (Q xs ys zs) =
@@ -175,6 +193,9 @@ dequeue :: Queue a -> Maybe (a, Queue a)
 dequeue = \case
   Q [] _ _ -> Nothing
   Q (x : xs) ys zs -> Just (x, makeQueue xs ys zs)
+
+------------------------------------------------------------------------------------------------------------------------
+-- Extended interface
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the front of a queue, to be dequeued next.
 enqueueFront :: a -> Queue a -> Queue a
@@ -200,11 +221,17 @@ span p =
           | p x -> go (enqueue x acc) xs
           | otherwise -> (acc, queue)
 
+------------------------------------------------------------------------------------------------------------------------
+-- Queries
+
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: Queue a -> Bool
 isEmpty = \case
   Q [] _ _ -> True
   _ -> False
+
+------------------------------------------------------------------------------------------------------------------------
+-- Transformations
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
 map :: (a -> b) -> Queue a -> Queue b
@@ -216,10 +243,8 @@ traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
 traverse f =
   fmap fromList . Traversable.traverse f . toList
 
--- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
-fromList :: [a] -> Queue a
-fromList xs =
-  Q xs [] (schedule xs)
+------------------------------------------------------------------------------------------------------------------------
+-- Conversions
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue. The head of the list corresponds to the front of the queue.
 toList :: Queue a -> [a]

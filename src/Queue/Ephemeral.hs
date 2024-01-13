@@ -1,4 +1,4 @@
--- | A queue data structure with \(\mathcal{O}(1)^⧧\) (amortized under ephemeral usage only) operations, as described in
+-- | A queue data structure with \(\mathcal{O}(1)^*\) (amortized under ephemeral usage only) operations, as described in
 --
 --   * Okasaki, Chris. \"Simple and efficient purely functional queues and deques.\" /Journal of functional programming/ 5.4 (1995): 583-592.
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
@@ -35,6 +35,7 @@ module Queue.Ephemeral
     -- ** Initialization
     empty,
     singleton,
+    fromList,
 
     -- * Basic interface
     enqueue,
@@ -51,8 +52,7 @@ module Queue.Ephemeral
     map,
     traverse,
 
-    -- * List conversions
-    fromList,
+    -- * Conversions
     toList,
   )
 where
@@ -60,6 +60,9 @@ where
 import Data.Foldable qualified as Foldable
 import Data.Traversable qualified as Traversable
 import Prelude hiding (foldMap, length, map, span, traverse)
+
+------------------------------------------------------------------------------------------------------------------------
+-- Queue type and instances
 
 -- | A queue data structure with \(\mathcal{O}(1)^⧧\) (amortized under ephemeral usage only) operations.
 data EphemeralQueue a
@@ -90,6 +93,9 @@ instance Traversable EphemeralQueue where
   traverse =
     traverse
 
+------------------------------------------------------------------------------------------------------------------------
+-- Patterns
+
 -- | An empty queue.
 pattern Empty :: EphemeralQueue a
 pattern Empty <- (dequeue -> Nothing)
@@ -99,6 +105,9 @@ pattern Front :: a -> EphemeralQueue a -> EphemeralQueue a
 pattern Front x xs <- (dequeue -> Just (x, xs))
 
 {-# COMPLETE Empty, Front #-}
+
+------------------------------------------------------------------------------------------------------------------------
+-- Initialization
 
 -- | An empty queue.
 empty :: EphemeralQueue a
@@ -110,12 +119,20 @@ singleton :: a -> EphemeralQueue a
 singleton x =
   Q [x] []
 
+-- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
+fromList :: [a] -> EphemeralQueue a
+fromList xs =
+  Q xs []
+
+------------------------------------------------------------------------------------------------------------------------
+-- Basic interface
+
 -- | \(\mathcal{O}(1)\). Enqueue an element at the back of a queue, to be dequeued last.
 enqueue :: a -> EphemeralQueue a -> EphemeralQueue a
 enqueue y (Q xs ys) =
   Q xs (y : ys)
 
--- | \(\mathcal{O}(1)^⧧\) front, \(\mathcal{O}(1)^⧧\) rest. Dequeue an element from the front of a queue.
+-- | \(\mathcal{O}(1)^*\) front, \(\mathcal{O}(1)^*\) rest. Dequeue an element from the front of a queue.
 dequeue :: EphemeralQueue a -> Maybe (a, EphemeralQueue a)
 dequeue = \case
   Q [] ys ->
@@ -123,6 +140,9 @@ dequeue = \case
       [] -> Nothing
       x : xs -> Just (x, Q xs [])
   Q (x : xs) ys -> Just (x, Q xs ys)
+
+------------------------------------------------------------------------------------------------------------------------
+-- Extended interface
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the front of a queue, to be dequeued next.
 enqueueFront :: a -> EphemeralQueue a -> EphemeralQueue a
@@ -145,11 +165,17 @@ span p =
         | p x -> go (enqueue x acc) xs
         | otherwise -> (acc, enqueueFront x xs)
 
+------------------------------------------------------------------------------------------------------------------------
+-- Queries
+
 -- | \(\mathcal{O}(1)\). Is a queue empty?
 isEmpty :: EphemeralQueue a -> Bool
 isEmpty = \case
   Q [] [] -> True
   _ -> False
+
+------------------------------------------------------------------------------------------------------------------------
+-- Transformations
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
 map :: (a -> b) -> EphemeralQueue a -> EphemeralQueue b
@@ -170,10 +196,8 @@ traverse f (Q xs ys) =
           [] -> pure []
           z : zs -> flip (:) <$> go zs <*> f z
 
--- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
-fromList :: [a] -> EphemeralQueue a
-fromList xs =
-  Q xs []
+------------------------------------------------------------------------------------------------------------------------
+-- Conversions
 
 -- | \(\mathcal{O}(n)\). Construct a list from a queue. The head of the list corresponds to the front of the queue.
 toList :: EphemeralQueue a -> [a]
