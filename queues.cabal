@@ -9,7 +9,6 @@ license: BSD-3-Clause
 license-file: LICENSE
 maintainer: Mitchell Rosen <mitchellwrosen@gmail.com>, Travis Staton <hello@travisstaton.com>
 name: queues
-stability: experimental
 synopsis: Queue data structures.
 tested-with: GHC == 9.4.7, GHC == 9.6.3, GHC == 9.8.1
 version: 0.1.0
@@ -86,7 +85,7 @@ common component
 library
   import: component
   build-depends:
-    base ^>= 4.17 || ^>= 4.18 || ^>= 4.19,
+    base ^>= 4.15 || ^>= 4.16 || ^>= 4.17 || ^>= 4.18 || ^>= 4.19,
   exposed-modules:
     Queue
     Queue.Ephemeral
