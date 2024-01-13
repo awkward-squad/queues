@@ -93,10 +93,6 @@ instance Foldable Queue where
         Empty -> mempty
         Front x xs -> f x <> go xs
 
-  elem :: (Eq a) => a -> Queue a -> Bool
-  elem x (Q xs ys _) =
-    List.elem x xs || List.elem x ys
-
   null :: Queue a -> Bool
   null =
     isEmpty

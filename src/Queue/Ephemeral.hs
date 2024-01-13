@@ -58,6 +58,7 @@ module Queue.Ephemeral
 where
 
 import Data.Foldable qualified as Foldable
+import Data.List qualified as List
 import Data.Traversable qualified as Traversable
 import Prelude hiding (foldMap, length, map, span, traverse)
 
@@ -69,10 +70,26 @@ data EphemeralQueue a
   = Q [a] [a]
   deriving stock (Eq, Functor)
 
--- TODO
 instance Foldable EphemeralQueue where
-  foldMap :: (a -> m) -> EphemeralQueue a -> m
-  foldMap = undefined
+  foldMap :: (Monoid m) => (a -> m) -> EphemeralQueue a -> m
+  foldMap f =
+    go
+    where
+      go = \case
+        Empty -> mempty
+        Front x xs -> f x <> go xs
+
+  elem :: (Eq a) => a -> EphemeralQueue a -> Bool
+  elem x (Q xs ys) =
+    List.elem x xs || List.elem x ys
+
+  null :: EphemeralQueue a -> Bool
+  null =
+    isEmpty
+
+  toList :: EphemeralQueue a -> [a]
+  toList =
+    Queue.Ephemeral.toList
 
 instance Monoid (EphemeralQueue a) where
   mempty :: EphemeralQueue a
@@ -82,16 +99,18 @@ instance Monoid (EphemeralQueue a) where
 -- | \(\mathcal{O}(n)\), where \(n\) is the size of the second argument.
 instance Semigroup (EphemeralQueue a) where
   (<>) :: EphemeralQueue a -> EphemeralQueue a -> EphemeralQueue a
-  Q as bs <> Q cs ds = Q as (ds ++ reverse cs ++ bs)
+  Q as bs <> Q cs ds =
+    Q as (ds ++ reverse cs ++ bs)
 
 instance (Show a) => Show (EphemeralQueue a) where
   show :: EphemeralQueue a -> String
-  show = show . toList
+  show =
+    show . Queue.Ephemeral.toList
 
 instance Traversable EphemeralQueue where
   traverse :: (Applicative f) => (a -> f b) -> EphemeralQueue a -> f (EphemeralQueue b)
   traverse =
-    traverse
+    Queue.Ephemeral.traverse
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Patterns
