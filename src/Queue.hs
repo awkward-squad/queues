@@ -2,32 +2,6 @@
 --
 --   * Okasaki, Chris. \"Simple and efficient purely functional queues and deques.\" /Journal of functional programming/ 5.4 (1995): 583-592.
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
---
--- A queue can be thought to have a \"back\" where new elements are enqueued, and a \"front\" where elements are
--- dequeued in the order that they were enqueued.
---
--- This queue also supports a \"enqueue at front\" operation, because the underlying representation happens to trivially
--- support it. (For a variant that also supports a \"dequeue from back\" operation, see "RealTimeDeque".
---
--- In this implementation, it is more helpful to think of the \"front\" being on the /left/, because (though the
--- decision is arbitrary) we are consistent throughout, where it matters:
---
---   * List conversion functions associate the head of a list with the front of a queue.
---   * The append operator @xs <> ys@ creates a queue with @xs@ in front of @ys@.
---
--- Performance comparison to other types:
---
---   +---+------------------------------+------------------+
---   |   | @Queue@                      |                  |
---   +===+==============================+==================+
---   | ✘ | is @2.50x@ slower than       | "EphemeralQueue" |
---   +---+------------------------------+                  |
---   | ✘ | allocates @2.10x@ as much as |                  |
---   +---+------------------------------+------------------+
---   | ✔ | is @2.50x@ faster than       | @Seq@            |
---   +---+------------------------------+                  |
---   | ✔ | allocates @0.40x@ as much as |                  |
---   +---+------------------------------+------------------+
 module Queue
   ( -- * Queue
     Queue (Empty, Front),
