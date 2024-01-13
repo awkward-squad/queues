@@ -51,6 +51,9 @@ data Queue a
       -- Some tail of the front of the queue.
       -- Invariant: length = length of front - length of back
       Schedule
+  -- fmap loses exact sharing of front of queue and schedule, but the schedule still works, forcing cons cells of the
+  -- original front (before fmap)
+  deriving stock (Functor)
 
 instance (Eq a) => Eq (Queue a) where
   (==) :: Queue a -> Queue a -> Bool
@@ -73,11 +76,6 @@ instance Foldable Queue where
   toList :: Queue a -> [a]
   toList =
     Queue.toList
-
-instance Functor Queue where
-  fmap :: (a -> b) -> Queue a -> Queue b
-  fmap =
-    map
 
 instance Monoid (Queue a) where
   mempty :: Queue a
@@ -116,18 +114,17 @@ pattern Front x xs <- (dequeue -> Just (x, xs))
 ------------------------------------------------------------------------------------------------------------------------
 -- Internal smart constructor utils
 
--- `queue xs ys zs` is always called when |zs| = |xs| - |ys| + 1 (i.e. just after a enqueue or dequeue)
+-- `queue xs ys schedule` is always called when |schedule| = |xs| - |ys| + 1 (i.e. just after a enqueue or dequeue)
 makeQueue :: [a] -> [a] -> Schedule -> Queue a
 makeQueue xs ys = \case
-  NoMoreWorkToDo -> let xs1 = rotate ys [] xs in Q xs1 [] (schedule xs1)
-  DidWork zs -> Q xs ys zs
+  Z -> Queue.fromList (rotate xs ys [])
+  S schedule -> Q xs ys schedule
 
--- rotate ys zs xs = xs ++ reverse ys ++ zs
+-- rotate xs ys zs = xs ++ reverse ys ++ zs
 -- Precondition: |ys| = |xs| + 1
-rotate :: NonEmptyList a -> [a] -> [a] -> [a]
-rotate (NonEmptyList y ys) zs = \case
-  [] -> y : zs
-  x : xs -> x : rotate ys (y : zs) xs
+rotate :: [a] -> NonEmptyList a -> [a] -> [a]
+rotate [] (y :| _) zs = y : zs
+rotate (x : xs) (y :| ys) zs = x : rotate xs ys (y : zs)
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Initialization
@@ -135,43 +132,41 @@ rotate (NonEmptyList y ys) zs = \case
 -- | An empty queue.
 empty :: Queue a
 empty =
-  Q [] [] NoMoreWorkToDo
+  Q [] [] Z
 
 -- | A singleton queue.
 singleton :: a -> Queue a
 singleton x =
-  Q xs [] (schedule xs)
-  where
-    xs = [x]
+  Queue.fromList [x]
 
 -- | \(\mathcal{O}(1)\). Construct a queue from a list. The head of the list corresponds to the front of the queue.
 fromList :: [a] -> Queue a
 fromList xs =
-  Q xs [] (schedule xs)
+  Q xs [] (unsafeCoerce xs)
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Basic interface
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the back of a queue, to be dequeued last.
 enqueue :: a -> Queue a -> Queue a
-enqueue y (Q xs ys zs) =
-  makeQueue xs (y : ys) zs
+enqueue y (Q xs ys schedule) =
+  makeQueue xs (y : ys) schedule
 
 -- | \(\mathcal{O}(1)\) front, \(\mathcal{O}(1)\) rest. Dequeue an element from the front of a queue.
 dequeue :: Queue a -> Maybe (a, Queue a)
 dequeue = \case
   Q [] _ _ -> Nothing
-  Q (x : xs) ys zs -> Just (x, makeQueue xs ys zs)
+  Q (x : xs) ys schedule -> Just (x, makeQueue xs ys schedule)
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Extended interface
 
 -- | \(\mathcal{O}(1)\). Enqueue an element at the front of a queue, to be dequeued next.
 enqueueFront :: a -> Queue a -> Queue a
-enqueueFront x (Q xs ys zs) =
+enqueueFront x (Q xs ys schedule) =
   -- smart constructor not needed here
   -- we also add useless work to the schedule to maintain the convenient rotate-on-empty-schedule trigger
-  Q (x : xs) ys (delay x zs)
+  Q (x : xs) ys (unsafeCoerce x : schedule)
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Queries
@@ -187,12 +182,13 @@ isEmpty = \case
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
 map :: (a -> b) -> Queue a -> Queue b
-map f =
-  fromList . List.map f . toList
+map =
+  fmap
 
 -- | \(\mathcal{O}(n)\). Apply a function to every element in a queue.
 traverse :: (Applicative f) => (a -> f b) -> Queue a -> f (Queue b)
 traverse f =
+  -- FIXME can we do better here?
   fmap fromList . Traversable.traverse f . toList
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -209,21 +205,13 @@ toList =
 type Schedule =
   [Any]
 
-pattern NoMoreWorkToDo :: Schedule
-pattern NoMoreWorkToDo = []
+pattern Z :: Schedule
+pattern Z = []
 
-pattern DidWork :: Schedule -> Schedule
-pattern DidWork xs <- _ : xs
+pattern S :: Schedule -> Schedule
+pattern S xs <- _ : xs
 
-{-# COMPLETE NoMoreWorkToDo, DidWork #-}
-
-schedule :: [a] -> Schedule
-schedule =
-  unsafeCoerce
-
-delay :: a -> Schedule -> Schedule
-delay x =
-  (unsafeCoerce x :)
+{-# COMPLETE Z, S #-}
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Non-empty list utils
@@ -232,7 +220,7 @@ delay x =
 type NonEmptyList a =
   [a]
 
-pattern NonEmptyList :: a -> [a] -> NonEmptyList a
-pattern NonEmptyList x xs = x : xs
+pattern (:|) :: a -> [a] -> NonEmptyList a
+pattern (:|) x xs = x : xs
 
-{-# COMPLETE NonEmptyList #-}
+{-# COMPLETE (:|) #-}
