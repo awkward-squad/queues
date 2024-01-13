@@ -68,7 +68,12 @@ import Prelude hiding (foldMap, length, map, span, traverse)
 -- | A queue data structure with \(\mathcal{O}(1)^⧧\) (amortized under ephemeral usage only) operations.
 data EphemeralQueue a
   = Q [a] [a]
-  deriving stock (Eq, Functor)
+  deriving stock (Functor)
+
+instance (Eq a) => Eq (EphemeralQueue a) where
+  (==) :: EphemeralQueue a -> EphemeralQueue a -> Bool
+  xs == ys =
+    Queue.Ephemeral.toList xs == Queue.Ephemeral.toList ys
 
 instance Foldable EphemeralQueue where
   foldMap :: (Monoid m) => (a -> m) -> EphemeralQueue a -> m

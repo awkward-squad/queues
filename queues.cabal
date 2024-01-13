@@ -59,6 +59,7 @@ common component
     NamedFieldPuns
     OverloadedStrings
     PatternSynonyms
+    QuantifiedConstraints
     RankNTypes
     ScopedTypeVariables
     StandaloneKindSignatures

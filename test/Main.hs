@@ -10,41 +10,90 @@ import Data.Word (Word8)
 import Hedgehog
   ( Gen,
     Group (Group),
+    Property,
     PropertyName,
     PropertyT,
     checkParallel,
     forAll,
     property,
     withTests,
-    (===),
+    (===), annotateShow,
   )
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Main qualified as Hedgehog (defaultMain)
 import Hedgehog.Range qualified as Range
 import Queue qualified
+import Queue.Ephemeral (EphemeralQueue)
 import Queue.Ephemeral qualified
 
 main :: IO ()
 main = do
   Hedgehog.defaultMain
-    [ tests
-        & map (\(name, prop) -> (name, withTests 1000 (property prop)))
-        & Group "tests"
-        & checkParallel
+    [ checkParallel (Group "tests" tests)
     ]
 
-tests :: [(PropertyName, PropertyT IO ())]
+tests :: [(PropertyName, Property)]
 tests =
   [ ( "toList . fromList = id",
-      do
+      (withTests 200 . property) do
         let test :: (Eq a, Show a) => Iface a -> [a] -> PropertyT IO ()
-            test Iface {toList, fromList} list = toList (fromList list) === list
+            test Iface {fromList, toList} list =
+              toList (fromList list) === list
         list <- forAll generateList
         test realTimeQueueIface list
         test ephemeralQueueIface list
     ),
-    ( "enqueue/enqueueFront/dequeue state machine tests",
-      do
+    ( "fromList (xs ++ ys) = fromList xs <> fromList ys",
+      (withTests 200 . property) do
+        let test :: (Eq a) => Iface a -> [a] -> [a] -> PropertyT IO ()
+            test Iface {fromList} xs ys =
+              fromList (xs ++ ys) === fromList xs <> fromList ys
+        xs <- forAll generateList
+        ys <- forAll generateList
+        test realTimeQueueIface xs ys
+        test ephemeralQueueIface xs ys
+    ),
+    ( "toList (xs <> ys) = toList xs <> toList ys",
+      (withTests 200 . property) do
+        let test :: (Eq a, Show a) => Iface a -> [a] -> [a] -> PropertyT IO ()
+            test Iface {fromList, toList} xs ys =
+              toList (fromList xs <> fromList ys) === (xs ++ ys)
+        xs <- forAll generateList
+        ys <- forAll generateList
+        test realTimeQueueIface xs ys
+        test ephemeralQueueIface xs ys
+    ),
+    ( "isEmpty empty = True",
+      (withTests 1 . property) do
+        let test :: Iface () -> PropertyT IO ()
+            test Iface {isEmpty, empty} =
+              isEmpty empty === True
+        test realTimeQueueIface
+        test ephemeralQueueIface
+    ),
+    ( "isEmpty (singleton ()) = False",
+      (withTests 1 . property) do
+        let test :: Iface () -> PropertyT IO ()
+            test Iface {isEmpty, singleton} =
+              isEmpty (singleton ()) === False
+        test realTimeQueueIface
+        test ephemeralQueueIface
+    ),
+    ( "EphemeralQueue: traverse traverses in order",
+      (withTests 1 . property) do
+        -- Make a queue that looks like: Q [1,2,3] [6,5,4]
+        let queue :: EphemeralQueue Int
+            queue =
+              Queue.Ephemeral.fromList [1, 2, 3]
+                & Queue.Ephemeral.enqueue 4
+                & Queue.Ephemeral.enqueue 5
+                & Queue.Ephemeral.enqueue 6
+        annotateShow queue
+        let (elems, _) = Queue.Ephemeral.traverse (\x -> ([x], ())) queue
+        elems === [1, 2, 3, 4, 5, 6]
+    ),
+    ( "state machine tests",
+      (withTests 1 . property) do
         actions <- forAll (generateQueueActions 1000)
         let expected = applyQueueActions seqIface actions
         applyQueueActions ephemeralQueueIface actions === expected
@@ -56,38 +105,53 @@ tests =
 -- Queue interface
 
 data Iface a = forall queue.
+  (Show (queue a), forall x. (Eq x) => Eq (queue x), forall x. Semigroup (queue x)) =>
   Iface
-  { empty :: queue a,
+  { dequeue :: queue a -> Maybe (a, queue a),
+    empty :: queue a,
     enqueue :: a -> queue a -> queue a,
-    dequeue :: queue a -> Maybe (a, queue a),
     enqueueFront :: a -> queue a -> queue a,
-    toList :: queue a -> [a],
-    fromList :: [a] -> queue a
+    isEmpty :: queue a -> Bool,
+    fromList :: [a] -> queue a,
+    singleton :: a -> queue a,
+    toList :: queue a -> [a]
   }
 
-realTimeQueueIface :: Iface a
+realTimeQueueIface :: (Show a) => Iface a
 realTimeQueueIface =
   Iface
+    Queue.dequeue
     Queue.empty
     Queue.enqueue
-    Queue.dequeue
     Queue.enqueueFront
-    Queue.toList
+    Queue.isEmpty
     Queue.fromList
+    Queue.singleton
+    Queue.toList
 
-ephemeralQueueIface :: Iface a
+ephemeralQueueIface :: (Show a) => Iface a
 ephemeralQueueIface =
   Iface
+    Queue.Ephemeral.dequeue
     Queue.Ephemeral.empty
     Queue.Ephemeral.enqueue
-    Queue.Ephemeral.dequeue
     Queue.Ephemeral.enqueueFront
-    Queue.Ephemeral.toList
+    Queue.Ephemeral.isEmpty
     Queue.Ephemeral.fromList
+    Queue.Ephemeral.singleton
+    Queue.Ephemeral.toList
 
-seqIface :: Iface a
+seqIface :: (Show a) => Iface a
 seqIface =
-  Iface Seq.empty seqEnqueue seqDequeue seqEnqueueFront Foldable.toList Seq.fromList
+  Iface
+    seqDequeue
+    Seq.empty
+    seqEnqueue
+    seqEnqueueFront
+    Seq.null
+    Seq.fromList
+    Seq.singleton
+    Foldable.toList
   where
     seqEnqueue :: a -> Seq a -> Seq a
     seqEnqueue =
