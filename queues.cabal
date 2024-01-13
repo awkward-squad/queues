@@ -3,7 +3,7 @@ cabal-version: 2.2
 author: Mitchell Rosen, Travis Staton
 bug-reports: https://github.com/awkward-squad/queues/issues
 category: Data
-copyright: Copyright (C) 2023 Mitchell Rosen, Travis Staton
+copyright: Copyright (C) 2023-2024 Mitchell Rosen, Travis Staton
 homepage: https://github.com/awkward-squad/queues
 license: BSD-3-Clause
 license-file: LICENSE
