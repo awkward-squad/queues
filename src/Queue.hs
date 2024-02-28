@@ -4,7 +4,7 @@
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
 module Queue
   ( -- * Queue
-    Queue (Empty, Front),
+    Queue (Empty, Full),
 
     -- ** Initialization
     empty,
@@ -67,7 +67,7 @@ instance Foldable Queue where
     where
       go = \case
         Empty -> mempty
-        Front x xs -> f x <> go xs
+        Full x xs -> f x <> go xs
 
   null :: Queue a -> Bool
   null =
@@ -86,7 +86,7 @@ instance Monoid (Queue a) where
 instance Semigroup (Queue a) where
   (<>) :: Queue a -> Queue a -> Queue a
   xs <> Empty = xs
-  xs <> Front y ys = enqueue y xs <> ys
+  xs <> Full y ys = enqueue y xs <> ys
 
 instance (Show a) => Show (Queue a) where
   show :: Queue a -> String
@@ -106,10 +106,10 @@ pattern Empty :: Queue a
 pattern Empty <- (dequeue -> Nothing)
 
 -- | The front of a queue, and the rest of it.
-pattern Front :: a -> Queue a -> Queue a
-pattern Front x xs <- (dequeue -> Just (x, xs))
+pattern Full :: a -> Queue a -> Queue a
+pattern Full x xs <- (dequeue -> Just (x, xs))
 
-{-# COMPLETE Empty, Front #-}
+{-# COMPLETE Empty, Full #-}
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Internal smart constructor utils

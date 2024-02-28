@@ -4,7 +4,7 @@
 --   * Okasaki, Chris. /Purely Functional Data Structures/. Diss. Princeton University, 1996.
 module Queue.Ephemeral
   ( -- * Ephemeral queue
-    EphemeralQueue (Empty, Front),
+    EphemeralQueue (Empty, Full),
 
     -- ** Initialization
     empty,
@@ -55,7 +55,7 @@ instance Foldable EphemeralQueue where
     where
       go = \case
         Empty -> mempty
-        Front x xs -> f x <> go xs
+        Full x xs -> f x <> go xs
 
   elem :: (Eq a) => a -> EphemeralQueue a -> Bool
   elem x (Q xs ys) =
@@ -93,13 +93,15 @@ instance Traversable EphemeralQueue where
 ------------------------------------------------------------------------------------------------------------------------
 -- Patterns
 
+-- | An empty queue.
 pattern Empty :: EphemeralQueue a
 pattern Empty <- (dequeue -> Nothing)
 
-pattern Front :: a -> EphemeralQueue a -> EphemeralQueue a
-pattern Front x xs <- (dequeue -> Just (x, xs))
+-- | The front of a queue, and the rest of it.
+pattern Full :: a -> EphemeralQueue a -> EphemeralQueue a
+pattern Full x xs <- (dequeue -> Just (x, xs))
 
-{-# COMPLETE Empty, Front #-}
+{-# COMPLETE Empty, Full #-}
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Initialization
