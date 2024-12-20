@@ -40,6 +40,7 @@ module Data.Steque.Internal
 import           Data.List.Strict.Internal (List' (..))
 import qualified Data.List.Strict.Internal as List'
 
+import           Control.Applicative (liftA2)
 import           Control.DeepSeq
 import qualified Data.Foldable as Foldable
 import           Data.Functor.Classes

@@ -27,6 +27,7 @@ module Data.List.Strict.Internal
   , Data.List.Strict.Internal.traverse
   ) where
 
+import           Control.Applicative (liftA2)
 import           Control.DeepSeq
 import           Data.Foldable
 import           Data.Functor.Classes
