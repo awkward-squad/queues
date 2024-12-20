@@ -2,8 +2,12 @@ cabal-version:   3.0
 
 name:            queues
 version:         2.0.0.0
-synopsis:        Queues
-description:     Queues.
+synopsis:        Queues.
+description:
+  Spine-strict list-based queues.
+
+  See the <https://github.com/awkward-squad/queues/blob/master/README.md README>
+  for a brief overview of the data structures included in this package.
 
 category:        Data Structures
 license:         BSD-3-Clause
